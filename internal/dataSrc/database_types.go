@@ -1,5 +1,9 @@
 package datasrc
 
+import (
+	"github.com/jackc/pgtype"
+)
+
 type UserProfile struct {
 	UserId                 int32   `json:"userId"`
 	EngName                string  `json:"engName,omitempty"`
@@ -32,18 +36,18 @@ type Attendance struct {
 }
 
 type EventInfo struct {
-	Id            int32  `json:"id"`
-	InviteToken   string `json:"inviteToken"`
-	Title         string `json:"title"`
-	BeginDate     string `json:"beginDate"`
-	EndDate       string `json:"endDate"`
-	Location      string `json:"location"`
-	Category      string `json:"category"`
-	GroupCategory string `json:"groupCategory,omitempty"`
-	Drivers       string `json:"drivers,omitempty"`
-	DriversNumber string `json:"driversNumber,omitempty"`
-	RadioFreq     string `json:"radioFreq"`
-	RadioCodename string `json:"radioCodename,omitempty"`
+	Id            int32            `json:"id"`
+	InviteToken   string           `json:"inviteToken"`
+	Title         string           `json:"title"`
+	BeginDate     pgtype.Timestamp `json:"beginDate"`
+	EndDate       pgtype.Timestamp `json:"endDate"`
+	Location      string           `json:"location"`
+	Category      string           `json:"category"`
+	GroupCategory string           `json:"groupCategory,omitempty"`
+	Drivers       string           `json:"drivers,omitempty"`
+	DriversNumber string           `json:"driversNumber,omitempty"`
+	RadioFreq     string           `json:"radioFreq"`
+	RadioCodename string           `json:"radioCodename,omitempty"`
 
 	TripOverview   string   `json:"tripOverview"`
 	RescueTime     string   `json:"rescueTime"`

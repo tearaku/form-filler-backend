@@ -11,7 +11,7 @@ type Service struct {
 }
 
 type DB interface {
-	GetEventInfo(ctx context.Context, params GetEventInfoParams) (*EventInfo, error)
+	GetEventInfo(ctx context.Context, id int) (*EventInfo, error)
 }
 
 type ValidationError struct {
