@@ -1,46 +1,44 @@
-package datasrc
+package dataSrc
 
 import (
+	"bytes"
+	"embed"
+	"fmt"
 	"io"
 	"log"
-	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
+//go:embed static/*
+var fs embed.FS
+
+const (
+	SCH_FORM_NAME        = "source"
+	SCH_FORM_EXT         = "xlsx"
+	INSUR_FORM_NAME      = "insurance"
+	INSUR_FORM_EXT       = "xlsx"
+	MOUNT_PASS_FORM_NAME = "mountpass"
+	MOUNT_PASS_FORM_EXT  = "xlsx"
+)
+
+// Loads environment variables defined in .env file
 func LocalEnvSetup() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Failed to load local environment variables from .env file.")
+		log.Println("Failed to load local environment variables from .env file.")
 	}
 	log.Println("Environment varaibles: successfully loaded")
 }
 
-// Returns: temporary copy of source.xlsx
-// Sets up local environment
-func SourceLocal() *os.File {
-	log.Println("Temporary file directory: ", os.TempDir())
-	src, err := os.Open("source.xlsx")
-	if err != nil {
-		log.Fatal("Failed to open source.xlsx, exiting.")
+// SourceLocal returns byte content from the target embedded file
+func SourceLocal(name string, extension string) (io.Reader, error) {
+	var ss strings.Builder
+	fmt.Fprintf(&ss, "static/%s.%s", name, extension)
+	b, err := fs.ReadFile(ss.String())
+	if err != nil || len(b) == 0 {
+		return nil, err
 	}
-	defer src.Close()
-
-	tempFile, err := os.CreateTemp("", "*.xlsx")
-	if err != nil {
-		log.Fatal("Failed to create temporary file.")
-	}
-
-	bytesWritten, err := io.Copy(tempFile, src)
-	if err != nil {
-		log.Fatal("Failed to copy source.xlsx into temporary file.")
-	}
-	log.Println("Bytes written: ", bytesWritten)
-
-	_, err = tempFile.Seek(0, 0)
-	if err != nil {
-		log.Fatal("Failed to seek to beginning of temp file.")
-	}
-
-	return tempFile
+	return bytes.NewReader(b), err
 }

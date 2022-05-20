@@ -2,16 +2,19 @@ package schoolForm
 
 import "context"
 
-func NewService(db DB) *Service {
-	return &Service{db: db}
+func NewService(db DB, ff FormFiller) *Service {
+	return &Service{db: db, ff: ff}
 }
 
 type Service struct {
 	db DB
+	ff FormFiller
 }
 
 type DB interface {
 	GetEventInfo(ctx context.Context, id int) (*EventInfo, error)
+	GetProfiles(ctx context.Context, idList []int32) ([]*UserProfile, error)
+	GetMinProfiles(ctx context.Context, idList []int32) ([]*MinProfile, error)
 }
 
 type ValidationError struct {

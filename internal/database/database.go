@@ -29,7 +29,7 @@ func NewDBPool(ctx context.Context, connString string) (*pgxpool.Pool, error) {
 }
 
 func (db *DB) GetEventInfo(ctx context.Context, id int) (*schoolForm.EventInfo, error) {
-	var event schoolForm.EventInfo
+	var event EventInfo
 	const sql = `SELECT * FROM "Event" WHERE id = $1`
 	rows, err := db.DbPool.Query(ctx, sql, id)
 	if err == nil {
@@ -48,8 +48,8 @@ func (db *DB) GetEventInfo(ctx context.Context, id int) (*schoolForm.EventInfo, 
 		log.Printf("Get event from database: failed, %v\n", err)
 		return nil, errors.New("get event from database: failed")
 	}
-	var attendants []schoolForm.Attendance
-	const sql2 = `SELECT * FROM "Attendance" WHERE "eventId" = $1`
+	var attendants []Attendance
+	const sql2 = `SELECT * FROM "Attendance" WHERE "eventId" = $1 ORDER BY "userId" ASC`
 	rows, err = db.DbPool.Query(ctx, sql2, id)
 	if err == nil {
 		defer rows.Close()
@@ -68,5 +68,59 @@ func (db *DB) GetEventInfo(ctx context.Context, id int) (*schoolForm.EventInfo, 
 		log.Printf("Get event from database: failed, %v\n", err)
 		return nil, errors.New("get event from database: failed")
 	}
-	return &event, nil
+	return event.dto(), nil
+}
+
+func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.UserProfile, error) {
+	var profileList []*UserProfile
+	const sql = `SELECT * FROM "Profile" WHERE "userId" = ($1::int[]) ORDER BY "userId" ASC`
+	rows, err := db.DbPool.Query(ctx, sql, idList)
+	if err == nil {
+		defer rows.Close()
+		if err := pgxscan.ScanAll(profileList, rows); err != nil {
+			return nil, err
+		}
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return nil, err
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	if err != nil {
+		log.Printf("Get event from database: failed, %v\n", err)
+		return nil, errors.New("get event from database: failed")
+	}
+	var faList []*schoolForm.UserProfile
+	for _, profile := range profileList {
+		faList = append(faList, profile.dto())
+	}
+	return faList, nil
+}
+
+func (db *DB) GetMinProfiles(ctx context.Context, idList []int32) ([]*schoolForm.MinProfile, error) {
+	var profileList []*MinProfile
+	const sql = `SELECT * FROM "MinimalProfile" WHERE "userId" = ($1::int[]) ORDER BY "userId" ASC`
+	rows, err := db.DbPool.Query(ctx, sql, idList)
+	if err == nil {
+		defer rows.Close()
+		if err := pgxscan.ScanAll(profileList, rows); err != nil {
+			return nil, err
+		}
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return nil, err
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	if err != nil {
+		log.Printf("Get event from database: failed, %v\n", err)
+		return nil, errors.New("get event from database: failed")
+	}
+	var faList []*schoolForm.MinProfile
+	for _, profile := range profileList {
+		faList = append(faList, profile.dto())
+	}
+	return faList, nil
 }

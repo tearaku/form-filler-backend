@@ -23,3 +23,10 @@ type UserProfile struct {
 	MobileNumber           string  `json:"mobileNumber"`
 	PhoneNumber            string  `json:"phoneNumber,omitempty"`
 }
+
+type MinProfile struct {
+	UserId       int32  `json:"userId"`
+	Name         string `json:"name"`
+	MobileNumber string `json:"mobileNumber"`
+	PhoneNumber  string `json:"phoneNumber,omitempty"`
+}

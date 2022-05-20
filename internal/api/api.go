@@ -21,44 +21,44 @@ type Server struct {
 	SchoolForm *schoolForm.Service
 
 	// grpc   *grpcServer
+	http *httpServer
 
-	http   *httpServer
 	stopFn sync.Once
 }
 
-func (server *Server) Run(ctx context.Context) (err error) {
-	var errorCode = make(chan error, 1)
-	server.http = &httpServer{
-		schoolForm: server.SchoolForm,
+func (s *Server) Run(ctx context.Context) (err error) {
+	var ec = make(chan error, 1)
+	s.http = &httpServer{
+		schoolForm: s.SchoolForm,
 	}
 	go func() {
-		err := server.http.Run(ctx, server.HTTPAddress)
+		err := s.http.Run(ctx, s.HTTPAddress)
 		if err != nil {
 			err = fmt.Errorf("HTTP server error: %w", err)
 		}
-		errorCode <- err
+		ec <- err
 	}()
 
-	var errorMsg []string
-	for i := 0; i < cap(errorCode); i++ {
-		if err := <-errorCode; err != nil {
-			errorMsg = append(errorMsg, err.Error())
+	var eMsg []string
+	for i := 0; i < cap(ec); i++ {
+		if err := <-ec; err != nil {
+			eMsg = append(eMsg, err.Error())
 			// Something about gracefully shutting down server?
 			if ctx.Err() == nil {
-				server.Shutdown(context.Background())
+				s.Shutdown(context.Background())
 			}
 		}
 	}
-	if len(errorMsg) > 0 {
-		err = errors.New(strings.Join(errorMsg, ", "))
+	if len(eMsg) > 0 {
+		err = errors.New(strings.Join(eMsg, ", "))
 	}
 	return err
 }
 
 // Shutting down server
-func (server *Server) Shutdown(ctx context.Context) {
-	server.stopFn.Do(func() {
-		server.http.Shutdown(ctx)
+func (s *Server) Shutdown(ctx context.Context) {
+	s.stopFn.Do(func() {
+		s.http.Shutdown(ctx)
 	})
 }
 
@@ -69,27 +69,27 @@ type httpServer struct {
 }
 
 // Running HTTP server
-func (server *httpServer) Run(ctx context.Context, address string) error {
-	handler := NewHTTPServer(server.schoolForm)
+func (s *httpServer) Run(ctx context.Context, address string) error {
+	handler := NewHTTPServer(s.schoolForm)
 
 	// TODO: Middleware here if needed
 
-	server.http = &http.Server{
+	s.http = &http.Server{
 		Addr:    address,
 		Handler: handler,
 	}
 	log.Printf("HTTP server listening at: %s\n", address)
-	if err := server.http.ListenAndServe(); err != nil {
+	if err := s.http.ListenAndServe(); err != nil {
 		return err
 	}
 	return nil
 }
 
 // Shutting down HTTP server
-func (server *httpServer) Shutdown(ctx context.Context) {
+func (s *httpServer) Shutdown(ctx context.Context) {
 	log.Println("Shutting down HTTP server")
-	if server.http != nil {
-		if err := server.http.Shutdown(ctx); err != nil {
+	if s.http != nil {
+		if err := s.http.Shutdown(ctx); err != nil {
 			log.Println("Graceful shutdown of HTTP server: failed!")
 		}
 	}
