@@ -15,6 +15,7 @@ type DB interface {
 	GetEventInfo(ctx context.Context, id int) (*EventInfo, error)
 	GetProfiles(ctx context.Context, idList []int32) ([]*UserProfile, error)
 	GetMinProfiles(ctx context.Context, idList []int32) ([]*MinProfile, error)
+	GetMemberByDept(ctx context.Context, des string) (*MinProfile, error)
 }
 
 type ValidationError struct {

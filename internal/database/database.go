@@ -93,7 +93,11 @@ func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.Us
 	}
 	var faList []*schoolForm.UserProfile
 	for _, profile := range profileList {
-		faList = append(faList, profile.dto())
+		p, err := profile.dto()
+		if err != nil {
+			return nil, err
+		}
+		faList = append(faList, p)
 	}
 	return faList, nil
 }
@@ -123,4 +127,27 @@ func (db *DB) GetMinProfiles(ctx context.Context, idList []int32) ([]*schoolForm
 		faList = append(faList, profile.dto())
 	}
 	return faList, nil
+}
+
+func (db *DB) GetMemberByDept(ctx context.Context, des string) (*schoolForm.MinProfile, error) {
+	var member *MinProfile
+	const sql = `SELECT * FROM "Department" WHERE "description" LIKE '$1'`
+	rows, err := db.DbPool.Query(ctx, sql, des)
+	if err == nil {
+		defer rows.Close()
+		if err := pgxscan.ScanOne(member, rows); err != nil {
+			return nil, err
+		}
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return nil, err
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	if err != nil {
+		log.Printf("Get member by department from database: failed, %v\n", err)
+		return nil, errors.New("get member by department from database: failed")
+	}
+	return member.dto(), nil
 }

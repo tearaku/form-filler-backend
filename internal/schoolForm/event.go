@@ -2,7 +2,9 @@ package schoolForm
 
 import (
 	"context"
+	"errors"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -52,6 +54,26 @@ type EventInfo struct {
 	Watchers   []Attendance
 }
 
+// TODO: slow poke O(N) search QQ
+func (e *EventInfo) FindMemberByRole(role string) (*UserProfile, error) {
+	for _, m := range e.Attendants {
+		if m.Role == role {
+			return &m.UserProfile, nil
+		}
+	}
+	return nil, errors.New("member of role '" + role + "' not found")
+}
+
+// TODO: slow poke O(N) search QQ
+func (e *EventInfo) FindMemberByJob(job string) (*UserProfile, error) {
+	for _, m := range e.Attendants {
+		if strings.Contains(m.Jobs, job) {
+			return &m.UserProfile, nil
+		}
+	}
+	return nil, errors.New("member of job '" + job + "' not found")
+}
+
 type GetEventInfoParams struct {
 	EventID string
 }
@@ -61,6 +83,10 @@ type FetchAttendancesParams struct {
 	WMinList  []int32
 	RMinList  []int32
 	EventInfo *EventInfo
+}
+
+type GetMemberByDeptParams struct {
+	Description string
 }
 
 func (param *GetEventInfoParams) validate() (int, error) {
@@ -135,4 +161,12 @@ func (s *Service) FetchAttendances(ctx context.Context, param FetchAttendancesPa
 		e.Rescues[i].MinProfile = *member
 	}
 	return nil
+}
+
+func (s *Service) GetMemberByDept(ctx context.Context, param GetMemberByDeptParams) (*MinProfile, error) {
+	if m, err := s.db.GetMemberByDept(ctx, param.Description); err != nil {
+		return nil, err
+	} else {
+		return m, nil
+	}
 }

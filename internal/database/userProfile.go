@@ -1,6 +1,9 @@
 package database
 
-import "teacup1592/form-filler/internal/schoolForm"
+import (
+	"teacup1592/form-filler/internal/schoolForm"
+	"time"
+)
 
 /*
 	Database view of the Profiles / MinProfile data (AKA raw data)
@@ -17,6 +20,7 @@ type UserProfile struct {
 	IsTaiwanese            bool    `db:"isTaiwanese"`
 	NationalId             string  `db:"nationalId"`
 	PassportNumber         string  `db:"passportNumber"`
+	Nationality            string  `db:"nationality"`
 	Address                string  `db:"address"`
 	EmergencyContactName   string  `db:"emergencyContactName"`
 	EmergencyContactMobile string  `db:"emergencyContactMobile"`
@@ -37,18 +41,23 @@ type MinProfile struct {
 	PhoneNumber  string `db:"phoneNumber"`
 }
 
-func (p *UserProfile) dto() *schoolForm.UserProfile {
+func (p *UserProfile) dto() (*schoolForm.UserProfile, error) {
+	date, err := time.ParseInLocation(time.RFC3339, p.DateOfBirth, time.Local)
+	if err != nil {
+		return nil, err
+	}
 	return &schoolForm.UserProfile{
 		UserId:                 p.UserId,
 		EngName:                p.EngName,
 		IsMale:                 p.IsMale,
 		IsStudent:              p.IsStudent,
 		MajorYear:              p.MajorYear,
-		DateOfBirth:            p.DateOfBirth,
+		DateOfBirth:            date,
 		PlaceOfBirth:           p.PlaceOfBirth,
 		IsTaiwanese:            p.IsTaiwanese,
 		NationalId:             p.NationalId,
 		PassportNumber:         p.PassportNumber,
+		Nationality:            p.Nationality,
 		Address:                p.Address,
 		EmergencyContactName:   p.EmergencyContactName,
 		EmergencyContactMobile: p.EmergencyContactMobile,
@@ -60,7 +69,7 @@ func (p *UserProfile) dto() *schoolForm.UserProfile {
 		Name:                   p.Name,
 		MobileNumber:           p.MobileNumber,
 		PhoneNumber:            p.PhoneNumber,
-	}
+	}, nil
 }
 
 func (p *MinProfile) dto() *schoolForm.MinProfile {

@@ -19,7 +19,7 @@ var (
 )
 
 func main() {
-	// Local settings setup
+	// TODO: Local settings setup
 	dataSrc.LocalEnvSetup()
 
 	connPool, err := database.NewDBPool(context.Background(), os.Getenv("DATABASE_URL"))
