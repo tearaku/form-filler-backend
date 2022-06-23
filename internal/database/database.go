@@ -28,12 +28,12 @@ func NewDBPool(ctx context.Context, connString string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+// TODO: I need meaningful error msg to trace things @@
 func (db *DB) GetEventInfo(ctx context.Context, id int) (*schoolForm.EventInfo, error) {
 	var event EventInfo
 	const sql = `SELECT * FROM "Event" WHERE id = $1`
 	rows, err := db.DbPool.Query(ctx, sql, id)
 	if err == nil {
-		defer rows.Close()
 		if err := pgxscan.ScanOne(&event, rows); err != nil {
 			return nil, err
 		}

@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -24,12 +23,12 @@ const (
 )
 
 // Loads environment variables defined in .env file
-func LocalEnvSetup() {
+func LocalEnvSetup() error {
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("Failed to load local environment variables from .env file.")
+		return err
 	}
-	log.Println("Environment varaibles: successfully loaded")
+	return nil
 }
 
 // SourceLocal returns byte content from the target embedded file
