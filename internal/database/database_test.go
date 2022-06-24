@@ -51,10 +51,10 @@ func (s *DBTestSuite) TestGetEventInfo() {
 			},
 			want: &schoolForm.EventInfo{
 				Id:             1,
-				InviteToken:    "SJhK5VZXCqbBOrQWWq_QV",
+				InviteToken:    "zVztX7II4eJi9b0OrV5Zj",
 				Title:          "Event #1",
-				BeginDate:      time.Date(2022, 7, 21, 16, 0, 0, 0, time.UTC),
-				EndDate:        time.Date(2022, 7, 26, 16, 0, 0, 0, time.UTC),
+				BeginDate:      time.Date(2022, 7, 23, 16, 0, 0, 0, time.UTC),
+				EndDate:        time.Date(2022, 7, 28, 16, 0, 0, 0, time.UTC),
 				Location:       "Taipei",
 				Category:       "B勘",
 				GroupCategory:  "天狼",
@@ -146,6 +146,14 @@ func (s *DBTestSuite) TestGetEventInfo() {
 				},
 			},
 		},
+		{
+			name: "get event with non-existent id",
+			args: args{
+				ctx: context.Background(),
+				id:  9999,
+			},
+			wantErr: "failed to get event from database",
+		},
 	}
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
@@ -155,6 +163,144 @@ func (s *DBTestSuite) TestGetEventInfo() {
 			}
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("mismatch with value from Db.GetEventInfo(): %v", cmp.Diff(got, tt.want))
+			}
+		})
+	}
+}
+
+func (s *DBTestSuite) TestGetProfiles() {
+	type args struct {
+		ctx    context.Context
+		idList []int32
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []*schoolForm.UserProfile
+		wantErr string
+	}{
+		{
+			name: "get valid profiles",
+			args: args{
+				ctx:    context.Background(),
+				idList: []int32{1, 2, 3, 4},
+			},
+			want: []*schoolForm.UserProfile{
+				{
+					UserId:                 1,
+					EngName:                "",
+					IsMale:                 true,
+					IsStudent:              true,
+					MajorYear:              "昆蟲四",
+					DateOfBirth:            time.Date(2000, 2, 4, 16, 0, 0, 0, time.UTC),
+					PlaceOfBirth:           "呵呵市",
+					IsTaiwanese:            true,
+					NationalId:             "A12345678",
+					PassportNumber:         "",
+					Nationality:            "",
+					Address:                "呵呵地址",
+					EmergencyContactName:   "緊急一",
+					EmergencyContactMobile: "0900-000-000",
+					EmergencyContactPhone:  "04-0000000",
+					BeneficiaryName:        "受益一",
+					BeneficiaryRelation:    "母子",
+					RiceAmount:             4,
+					FoodPreference:         "喜歡辣",
+					Name:                   "一號君",
+					MobileNumber:           "0910-000-000",
+					PhoneNumber:            "01-0000000",
+				},
+				{
+					UserId:                 2,
+					EngName:                "",
+					IsMale:                 false,
+					IsStudent:              true,
+					MajorYear:              "中文一",
+					DateOfBirth:            time.Date(2004, 2, 4, 16, 0, 0, 0, time.UTC),
+					PlaceOfBirth:           "呵呵市",
+					IsTaiwanese:            true,
+					NationalId:             "A12345678",
+					PassportNumber:         "",
+					Nationality:            "",
+					Address:                "呵呵地址",
+					EmergencyContactName:   "緊急二",
+					EmergencyContactMobile: "0900-000-001",
+					EmergencyContactPhone:  "無",
+					BeneficiaryName:        "受益二",
+					BeneficiaryRelation:    "父女",
+					RiceAmount:             2,
+					FoodPreference:         "",
+					Name:                   "二號君",
+					MobileNumber:           "0910-000-001",
+					PhoneNumber:            "01-0000001",
+				},
+				{
+					UserId:                 3,
+					EngName:                "Matthews Brittney",
+					IsMale:                 true,
+					IsStudent:              false,
+					MajorYear:              "",
+					DateOfBirth:            time.Date(1995, 2, 4, 16, 0, 0, 0, time.UTC),
+					PlaceOfBirth:           "呵呵國",
+					IsTaiwanese:            false,
+					NationalId:             "",
+					PassportNumber:         "P12345678",
+					Nationality:            "香港",
+					Address:                "呵呵地址",
+					EmergencyContactName:   "緊急三",
+					EmergencyContactMobile: "0900-000-002",
+					EmergencyContactPhone:  "04-0000002",
+					BeneficiaryName:        "受益三",
+					BeneficiaryRelation:    "父子",
+					RiceAmount:             6,
+					FoodPreference:         "飯多一點",
+					Name:                   "三號君",
+					MobileNumber:           "0910-000-002",
+					PhoneNumber:            "01-0000002",
+				},
+				{
+					UserId:                 4,
+					EngName:                "Cole Schriber",
+					IsMale:                 false,
+					IsStudent:              false,
+					MajorYear:              "",
+					DateOfBirth:            time.Date(1990, 2, 4, 16, 0, 0, 0, time.UTC),
+					PlaceOfBirth:           "呵呵國",
+					IsTaiwanese:            false,
+					NationalId:             "",
+					PassportNumber:         "P87654321",
+					Nationality:            "奧門",
+					Address:                "呵呵地址",
+					EmergencyContactName:   "緊急四",
+					EmergencyContactMobile: "0900-000-003",
+					EmergencyContactPhone:  "04-0000003",
+					BeneficiaryName:        "受益四",
+					BeneficiaryRelation:    "母女",
+					RiceAmount:             3,
+					FoodPreference:         "",
+					Name:                   "四號君",
+					MobileNumber:           "0910-000-003",
+					PhoneNumber:            "01-0000003",
+				},
+			},
+		},
+		{
+			name: "get users without profiles (Profile)",
+			args: args{
+				ctx:    context.Background(),
+				idList: []int32{5, 6, 7},
+			},
+			wantErr: "no event attendee profiles were fetched",
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			got, err := s.Db.GetProfiles(tt.args.ctx, tt.args.idList)
+			if err == nil && tt.wantErr != "" || err != nil && err.Error() != tt.wantErr {
+				t.Errorf("Db.GetProfiles() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			if !cmp.Equal(got, tt.want) {
+				t.Errorf("mismatch with value from Db.GetProfiles(): %v", cmp.Diff(got, tt.want))
 			}
 		})
 	}

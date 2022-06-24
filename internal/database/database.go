@@ -8,6 +8,7 @@ import (
 	"teacup1592/form-filler/internal/schoolForm"
 
 	"github.com/georgysavva/scany/pgxscan"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -34,70 +35,83 @@ func (db *DB) GetEventInfo(ctx context.Context, id int) (*schoolForm.EventInfo, 
 	const sql = `SELECT * FROM "Event" WHERE id = $1`
 	rows, err := db.DbPool.Query(ctx, sql, id)
 	if err == nil {
-		if err := pgxscan.ScanOne(&event, rows); err != nil {
-			return nil, err
+		if err = pgxscan.ScanOne(&event, rows); err != nil {
+			log.Printf("Scanning into db.EventInfo failed: %v\n", err)
 		}
 	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return nil, err
 	}
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
 	if err != nil {
 		log.Printf("Get event from database: failed, %v\n", err)
-		return nil, errors.New("get event from database: failed")
+		return nil, errors.New("failed to get event from database")
 	}
 	var attendants []Attendance
 	const sql2 = `SELECT * FROM "Attendance" WHERE "eventId" = $1 ORDER BY "userId" ASC`
 	rows, err = db.DbPool.Query(ctx, sql2, id)
-	if err == nil {
-		defer rows.Close()
-		if err := pgxscan.ScanAll(&attendants, rows); err != nil {
-			return nil, err
-		}
-		event.Attendants = attendants
-	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return nil, err
 	}
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
 	if err != nil {
-		log.Printf("Get event from database: failed, %v\n", err)
-		return nil, errors.New("get event from database: failed")
+		log.Printf("Get event's attendance from database: failed, %v\n", err)
+		return nil, errors.New("failed to get event info 'attendance' from database")
 	}
+	defer rows.Close()
+	rs := pgxscan.NewRowScanner(rows)
+	isEmpty := true
+	for rows.Next() {
+		var a Attendance
+		if err := rs.Scan(&a); err != nil {
+			log.Printf("Scanning attendance rows from db failed: %\v\n", err)
+			return nil, errors.New("failed to parse event info 'attendance' from database")
+		}
+		attendants = append(attendants, a)
+		isEmpty = false
+	}
+	if isEmpty {
+		log.Printf("Empty Attendance result set\n")
+		return nil, errors.New("no event attendance were fetched")
+	}
+	event.Attendants = attendants
 	return event.dto(), nil
 }
 
 func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.UserProfile, error) {
-	var profileList []*UserProfile
-	const sql = `SELECT * FROM "Profile" WHERE "userId" = ($1::int[]) ORDER BY "userId" ASC`
-	rows, err := db.DbPool.Query(ctx, sql, idList)
-	if err == nil {
-		defer rows.Close()
-		if err := pgxscan.ScanAll(profileList, rows); err != nil {
-			return nil, err
-		}
-	}
+	var faList []*schoolForm.UserProfile
+	const sql = `SELECT "Profile".*, "MinimalProfile"."name", "MinimalProfile"."mobileNumber", "MinimalProfile"."phoneNumber" 
+	FROM "Profile", "MinimalProfile"
+	WHERE "Profile"."userId" = "MinimalProfile"."userId" AND
+	"Profile"."userId" = ANY ($1) ORDER BY "userId" ASC`
+	args := &pgtype.Int4Array{}
+	args.Set(idList)
+	rows, err := db.DbPool.Query(ctx, sql, args)
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return nil, err
 	}
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, err
-	}
 	if err != nil {
-		log.Printf("Get event from database: failed, %v\n", err)
-		return nil, errors.New("get event from database: failed")
+		log.Printf("Get profiles from database: failed, %v\n", err)
+		return nil, errors.New("get profiles from database: failed")
 	}
-	var faList []*schoolForm.UserProfile
-	for _, profile := range profileList {
-		p, err := profile.dto()
-		if err != nil {
-			return nil, err
+	defer rows.Close()
+	rs := pgxscan.NewRowScanner(rows)
+	isEmpty := true
+	for rows.Next() {
+		var p UserProfile
+		if err := rs.Scan(&p); err != nil {
+			log.Printf("Scanning profile rows from db failed: %v\n", err)
+			return nil, errors.New("cannot get event attendee profiles")
 		}
-		faList = append(faList, p)
+		dto, err := p.dto()
+		if err != nil {
+			log.Printf("UserProfile dto error: %v\n", err)
+			return nil, errors.New("cannot parse event attendee profiles")
+		}
+		faList = append(faList, dto)
+		isEmpty = false
+	}
+	if isEmpty {
+		log.Printf("Empty UserProfile result set\n")
+		return nil, errors.New("no event attendee profiles were fetched")
 	}
 	return faList, nil
 }

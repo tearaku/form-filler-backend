@@ -1,7 +1,6 @@
 package database
 
 import (
-	"log"
 	"teacup1592/form-filler/internal/schoolForm"
 	"time"
 )
@@ -84,7 +83,6 @@ func (e *EventInfo) dto() *schoolForm.EventInfo {
 	attendants := make([]schoolForm.FullAttendance, 0)
 	rescues := make([]schoolForm.Attendance, 0)
 	watchers := make([]schoolForm.Attendance, 0)
-	log.Printf("#of attendants scanned in: %v\n", len(e.Attendants))
 	for _, member := range e.Attendants {
 		switch {
 		case member.Role == "Rescue":
