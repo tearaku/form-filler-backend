@@ -53,8 +53,8 @@ func (s *DBTestSuite) TestGetEventInfo() {
 				Id:             1,
 				InviteToken:    "zVztX7II4eJi9b0OrV5Zj",
 				Title:          "Event #1",
-				BeginDate:      time.Date(2022, 7, 23, 16, 0, 0, 0, time.UTC),
-				EndDate:        time.Date(2022, 7, 28, 16, 0, 0, 0, time.UTC),
+				BeginDate:      time.Date(2022, 8, 23, 8, 0, 0, 0, time.UTC),
+				EndDate:        time.Date(2022, 8, 28, 8, 0, 0, 0, time.UTC),
 				Location:       "Taipei",
 				Category:       "B勘",
 				GroupCategory:  "天狼",
@@ -301,6 +301,188 @@ func (s *DBTestSuite) TestGetProfiles() {
 			}
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("mismatch with value from Db.GetProfiles(): %v", cmp.Diff(got, tt.want))
+			}
+		})
+	}
+}
+
+func (s *DBTestSuite) TestGetMinProfiles() {
+	type args struct {
+		ctx    context.Context
+		idList []int32
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []*schoolForm.MinProfile
+		wantErr string
+	}{
+		{
+			name: "get valid min profiles",
+			args: args{
+				ctx:    context.Background(),
+				idList: []int32{1, 2, 3, 4, 5, 6, 7},
+			},
+			want: []*schoolForm.MinProfile{
+				{
+					UserId:       1,
+					Name:         "一號君",
+					MobileNumber: "0910-000-000",
+					PhoneNumber:  "01-0000000",
+				},
+				{
+					UserId:       2,
+					Name:         "二號君",
+					MobileNumber: "0910-000-001",
+					PhoneNumber:  "01-0000001",
+				},
+				{
+					UserId:       3,
+					Name:         "三號君",
+					MobileNumber: "0910-000-002",
+					PhoneNumber:  "01-0000002",
+				},
+				{
+					UserId:       4,
+					Name:         "四號君",
+					MobileNumber: "0910-000-003",
+					PhoneNumber:  "01-0000003",
+				},
+				{
+					UserId:       5,
+					Name:         "半號一君",
+					MobileNumber: "0910-000-004",
+					PhoneNumber:  "01-0000004",
+				},
+				{
+					UserId:       6,
+					Name:         "半號二君",
+					MobileNumber: "0910-000-005",
+					PhoneNumber:  "01-0000005",
+				},
+				{
+					UserId:       7,
+					Name:         "半號三君",
+					MobileNumber: "0910-000-006",
+					PhoneNumber:  "01-0000006",
+				},
+			},
+		},
+		{
+			name: "get non-existent min profiles",
+			args: args{
+				ctx:    context.Background(),
+				idList: []int32{1000, 1001, 1002, 1003},
+			},
+			wantErr: "no event attendee minimal profiles were fetched",
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			got, err := s.Db.GetMinProfiles(tt.args.ctx, tt.args.idList)
+			if err == nil && tt.wantErr != "" || err != nil && err.Error() != tt.wantErr {
+				t.Errorf("Db.GetMinProfiles() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			if !cmp.Equal(got, tt.want) {
+				t.Errorf("mismatch with value from Db.GetMinProfiles(): %v", cmp.Diff(got, tt.want))
+			}
+		})
+	}
+}
+
+func (s *DBTestSuite) TestGetMemberByDept() {
+	type args struct {
+		ctx context.Context
+		des string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *schoolForm.MinProfile
+		wantErr string
+	}{
+		{
+			name: "get valid departmenet head: 社長",
+			args: args{
+				ctx: context.Background(),
+				des: "社長",
+			},
+			want: &schoolForm.MinProfile{
+				UserId:       1,
+				Name:         "一號君",
+				MobileNumber: "0910-000-000",
+				PhoneNumber:  "01-0000000",
+			},
+		},
+		{
+			name: "get valid departmenet head: 嚮導部長1",
+			args: args{
+				ctx: context.Background(),
+				des: "嚮導部長1",
+			},
+			want: &schoolForm.MinProfile{
+				UserId:       2,
+				Name:         "二號君",
+				MobileNumber: "0910-000-001",
+				PhoneNumber:  "01-0000001",
+			},
+		},
+		{
+			name: "get valid departmenet head: 嚮導部長2",
+			args: args{
+				ctx: context.Background(),
+				des: "嚮導部長2",
+			},
+			want: &schoolForm.MinProfile{
+				UserId:       3,
+				Name:         "三號君",
+				MobileNumber: "0910-000-002",
+				PhoneNumber:  "01-0000002",
+			},
+		},
+		{
+			name: "get valid departmenet head: 社產組長",
+			args: args{
+				ctx: context.Background(),
+				des: "社產組長",
+			},
+			want: &schoolForm.MinProfile{
+				UserId:       4,
+				Name:         "四號君",
+				MobileNumber: "0910-000-003",
+				PhoneNumber:  "01-0000003",
+			},
+		},
+		{
+			name: "get valid departmenet head: 山難部長",
+			args: args{
+				ctx: context.Background(),
+				des: "山難部長",
+			},
+			want: &schoolForm.MinProfile{
+				UserId:       5,
+				Name:         "半號一君",
+				MobileNumber: "0910-000-004",
+				PhoneNumber:  "01-0000004",
+			},
+		},
+		{
+			name: "get non-existent department head",
+			args: args{
+				ctx: context.Background(),
+				des: "香菇部長",
+			},
+			wantErr: "failed to parse member data from database",
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			got, err := s.Db.GetMemberByDept(tt.args.ctx, tt.args.des)
+			if err == nil && tt.wantErr != "" || err != nil && err.Error() != tt.wantErr {
+				t.Errorf("Db.GetMemberByDept() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			if !cmp.Equal(got, tt.want) {
+				t.Errorf("mismatch with value from Db.GetMemberByDept(): %v", cmp.Diff(got, tt.want))
 			}
 		})
 	}

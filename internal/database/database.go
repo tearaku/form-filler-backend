@@ -9,7 +9,6 @@ import (
 
 	"github.com/georgysavva/scany/pgxscan"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -83,7 +82,10 @@ func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.Us
 	WHERE "Profile"."userId" = "MinimalProfile"."userId" AND
 	"Profile"."userId" = ANY ($1) ORDER BY "userId" ASC`
 	args := &pgtype.Int4Array{}
-	args.Set(idList)
+	if err := args.Set(idList); err != nil {
+		log.Printf("err in setting Int4Array in Db.GetProfiles(): %v\n", err)
+		return nil, errors.New("failed to setup sql for fetching profiles")
+	}
 	rows, err := db.DbPool.Query(ctx, sql, args)
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return nil, err
@@ -117,51 +119,58 @@ func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.Us
 }
 
 func (db *DB) GetMinProfiles(ctx context.Context, idList []int32) ([]*schoolForm.MinProfile, error) {
-	var profileList []*MinProfile
-	const sql = `SELECT * FROM "MinimalProfile" WHERE "userId" = ($1::int[]) ORDER BY "userId" ASC`
+	var aList []*schoolForm.MinProfile
+	var args = pgtype.Int4Array{}
+	if err := args.Set(idList); err != nil {
+		log.Printf("err in setting Int4Array in Db.GetMinProfiles(): %v\n", err)
+		return nil, errors.New("failed to setup sql for fetching minimal profiles")
+	}
+	const sql = `SELECT * FROM "MinimalProfile" WHERE "userId" = ANY ($1) ORDER BY "userId" ASC`
 	rows, err := db.DbPool.Query(ctx, sql, idList)
-	if err == nil {
-		defer rows.Close()
-		if err := pgxscan.ScanAll(profileList, rows); err != nil {
-			return nil, err
-		}
-	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return nil, err
-	}
-	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 	if err != nil {
-		log.Printf("Get event from database: failed, %v\n", err)
-		return nil, errors.New("get event from database: failed")
+		log.Printf("Get minimal profiles from database: failed: %v\n", err)
+		return nil, errors.New("get minimal profiles from database: failed")
 	}
-	var faList []*schoolForm.MinProfile
-	for _, profile := range profileList {
-		faList = append(faList, profile.dto())
+	defer rows.Close()
+	rs := pgxscan.NewRowScanner(rows)
+	isEmpty := true
+	for rows.Next() {
+		var m MinProfile
+		if err := rs.Scan(&m); err != nil {
+			log.Printf("Scanning minimal profile rows from db: failed, %v\n", err)
+			return nil, errors.New("cannot get event attendee minimal profile")
+		}
+		aList = append(aList, m.dto())
+		isEmpty = false
 	}
-	return faList, nil
+	if isEmpty {
+		log.Printf("Empty MinProfile result set\n")
+		return nil, errors.New("no event attendee minimal profiles were fetched")
+	}
+	return aList, nil
 }
 
 func (db *DB) GetMemberByDept(ctx context.Context, des string) (*schoolForm.MinProfile, error) {
-	var member *MinProfile
-	const sql = `SELECT * FROM "Department" WHERE "description" LIKE '$1'`
+	var member MinProfile
+	const sql = `SELECT * FROM "MinimalProfile"
+	WHERE "userId" = ANY (SELECT "userId" FROM "Department" WHERE "description" LIKE $1)`
 	rows, err := db.DbPool.Query(ctx, sql, des)
 	if err == nil {
 		defer rows.Close()
-		if err := pgxscan.ScanOne(member, rows); err != nil {
-			return nil, err
+		if err := pgxscan.ScanOne(&member, rows); err != nil {
+			log.Printf("Scanning into struct in Db.GetMemberByDept() failed: %v\n", err)
+			return nil, errors.New("failed to parse member data from database")
 		}
 	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return nil, err
-	}
-	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 	if err != nil {
 		log.Printf("Get member by department from database: failed, %v\n", err)
-		return nil, errors.New("get member by department from database: failed")
+		return nil, errors.New("failed to get member by department from database")
 	}
 	return member.dto(), nil
 }
