@@ -34,8 +34,8 @@ const (
 	// Beginning row number of the 1st memer list in page 1
 	MEMBER_P1_BEGIN = 39
 	// Starting row index of member / watcher data for CampusSecurity form
-	CAMPUS_SEC_MEMBER_BEGIN  = 9
-	CAMPUS_SEC_WATCHER_BEGIN = 5
+	CAMPUS_SEC_MEMBER_BEGIN = 9
+	CAMPUS_SEC_RESCUE_BEGIN = 5
 )
 
 type VarEquipField struct {
@@ -76,7 +76,7 @@ func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue)
 	return nil
 }
 
-// Fills the indices 1 & 2, skips [watcher(s), rescuer(s)]
+// Fills the indices 2 & 3
 func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId int) error {
 	// Wrapper for SetCellValue --> check errors @ the end
 	ew := &errSetCellValue{e: ff.excel}
@@ -110,27 +110,27 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		ew.setCellValue(s, "I7", mentor.PhoneNumber)
 	}
 	if m, err := e.FindMemberByJob("保"); err == nil {
-		ew.setCellValue(s, "C9", m.Name)
+		ew.setCellValue(s, "C8", m.Name)
 	} else {
 		return err
 	}
-	if dur := int(e.EndDate.Sub(e.BeginDate).Hours() / 24); dur < 0 {
+	if dur := int(e.EndDate.Sub(e.BeginDate).Hours()/24) + 1; dur < 0 {
 		return errors.New("event duration cannot be negative, " + strconv.Itoa(dur))
 	} else {
-		ew.setCellValue(s, "H9", 10*dur*len(e.Attendants))
+		ew.setCellValue(s, "H8", 10*dur*len(e.Attendants))
 	}
 	ew.setCellValue(s, "C13", e.Drivers)
 	ew.setCellValue(s, "H13", e.DriversNumber)
 	ew.setCellValue(s, "C14", e.RadioFreq)
 	ew.setCellValue(s, "H14", e.RadioCodename)
 	ew.setCellValue(s, "C15", e.TripOverview)
-	ew.setCellValue(s, "C16", "山難時間："+e.RescueTime)
+	ew.setCellValue(s, "C16", ("山難時間：" + e.RescueTime))
 	ew.setCellValue(s, "C17", e.RetreatPlan)
 	ew.setCellValue(s, "A19", e.MapCoordSystem)
 	ew.setCellValue(s, "C20", e.Records)
 
-	equipColNames := [3]string{"C", "G", "J"}
-	equipColDes := [3]string{"A", "E", "H"}
+	equipColDes := [3]string{"C", "G", "J"}
+	equipColNames := [3]string{"A", "E", "H"}
 	cusEquip := VarEquipField{
 		curRowCap: 3,
 		curRowIdx: 29,
@@ -154,7 +154,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	for i, eq := range e.TechEquipList {
 		c, ok := tEquipList[eq.Name]
 		if ok {
-			ew.setCellValue(s, c, eq.Name)
+			ew.setCellValue(s, c, eq.Des)
 		} else {
 			cusTEquip.dataIdx = append(cusTEquip.dataIdx, i)
 		}
@@ -318,12 +318,14 @@ func (ff *FormFiller) FillCampusSecurity(e *EventInfo, cL *MinProfile, sId int) 
 		}
 	}
 
-	for j := 1; j < len(e.Watchers); j++ {
-		ff.excel.DuplicateRowTo(s, 5, 6)
+	// Fill in club leader & rescue (山難) info
+	ew.setCellValue(s, "A"+strconv.Itoa(CAMPUS_SEC_RESCUE_BEGIN+1), cL.Name+cL.MobileNumber)
+	for j := 1; j < len(e.Rescues); j++ {
+		ff.excel.DuplicateRowTo(s, CAMPUS_SEC_RESCUE_BEGIN, CAMPUS_SEC_RESCUE_BEGIN+1)
 	}
-	i = CAMPUS_SEC_WATCHER_BEGIN
-	for j, m := range e.Watchers {
-		ew.setCellValue(s, "A"+strconv.Itoa(i+j), m.MinProfile.Name)
+	i = CAMPUS_SEC_RESCUE_BEGIN
+	for j, m := range e.Rescues {
+		ew.setCellValue(s, "A"+strconv.Itoa(i+j), m.MinProfile.Name+m.MinProfile.MobileNumber)
 	}
 
 	if ew.err != nil {
