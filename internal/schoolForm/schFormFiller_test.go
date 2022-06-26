@@ -50,7 +50,6 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 	}{
 		{
 			name: "valid filling of common record sheet (internal use)",
-			// TODO: maybe these things should be mocked instead of just getting them from a helper function...?
 			args: args{
 				e:   getFullEventInfo(),
 				sId: 2,
@@ -63,7 +62,6 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 		},
 		{
 			name: "valid filling of common record sheet (external use)",
-			// TODO: maybe these things should be mocked instead of just getting them from a helper function...?
 			args: args{
 				e: getFullEventInfo(),
 				cL: &MinProfile{
@@ -156,7 +154,69 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 				t.Errorf("Error in getting rows from 'source.xlsx': %v\n", err)
 			}
 			if !cmp.Equal(gotRows, wantRows) {
-				t.Errorf("mismatch with column values: %v\n", cmp.Diff(gotRows, wantRows))
+				t.Errorf("mismatch with row values: %v\n", cmp.Diff(gotRows, wantRows))
+			}
+		})
+	}
+}
+
+func (s *FFTestSuite) TestFillCampusSecurity() {
+	type args struct {
+		e   *EventInfo
+		cL  *MinProfile
+		sId int
+	}
+	type wantArgs struct {
+		fName string
+		fExt  string
+		sId   int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    wantArgs
+		wantErr string
+	}{
+		{
+			name: "valid call to filling campus security",
+			args: args{
+				e: getFullEventInfo(),
+				cL: &MinProfile{
+					UserId:       1,
+					Name:         "一號君",
+					MobileNumber: "0910-000-000",
+					PhoneNumber:  "01-0000000",
+				},
+				sId: 5,
+			},
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME,
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   5,
+			},
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			// Fetch the control sheet
+			_ff := FormFiller{}
+			if err := _ff.Init(T_SCH_FORM_NAME, dataSrc.SCH_FORM_EXT); err != nil {
+				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
+			}
+			defer _ff.excel.Close()
+			if err := s.ff.FillCampusSecurity(tt.args.e, tt.args.cL, tt.args.sId); err != nil {
+				t.Errorf("Error in FillCampusSecurity: %v\n", err)
+			}
+			wantCols, err := _ff.excel.GetCols(_ff.excel.GetSheetName(tt.want.sId))
+			if err != nil {
+				t.Errorf("Error in getting cols from 'source_test.xlsx': %v\n", err)
+			}
+			gotCols, err := s.ff.excel.GetCols(s.ff.excel.GetSheetName(tt.args.sId))
+			if err != nil {
+				t.Errorf("Error in getting cols from 'source.xlsx': %v\n", err)
+			}
+			if !cmp.Equal(gotCols, wantCols) {
+				t.Errorf("mismatch with column values: %v\n", cmp.Diff(gotCols, wantCols))
 			}
 		})
 	}
