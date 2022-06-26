@@ -1,7 +1,6 @@
 package schoolForm
 
 import (
-	"context"
 	"teacup1592/form-filler/internal/dataSrc"
 	"testing"
 
@@ -34,7 +33,6 @@ func (s *FFTestSuite) TearDownTest() {
 
 func (s *FFTestSuite) TestFillCommonRecordSheet() {
 	type args struct {
-		ctx context.Context
 		e   *EventInfo
 		cL  *MinProfile
 		sId int
@@ -54,7 +52,6 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 			name: "valid filling of common record sheet (internal use)",
 			// TODO: maybe these things should be mocked instead of just getting them from a helper function...?
 			args: args{
-				ctx: context.Background(),
 				e:   getFullEventInfo(),
 				sId: 2,
 			},
@@ -68,8 +65,7 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 			name: "valid filling of common record sheet (external use)",
 			// TODO: maybe these things should be mocked instead of just getting them from a helper function...?
 			args: args{
-				ctx: context.Background(),
-				e:   getFullEventInfo(),
+				e: getFullEventInfo(),
 				cL: &MinProfile{
 					UserId:       1,
 					Name:         "一號君",
@@ -106,6 +102,61 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 			}
 			if !cmp.Equal(gotCols, wantCols) {
 				t.Errorf("mismatch with column values: %v\n", cmp.Diff(gotCols, wantCols))
+			}
+		})
+	}
+}
+
+func (s *FFTestSuite) TestFillWavierSheet() {
+	type args struct {
+		faList []FullAttendance
+		sId    int
+	}
+	type wantArgs struct {
+		fName string
+		fExt  string
+		sId   int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    wantArgs
+		wantErr string
+	}{
+		{
+			name: "valid call to FillWavierSheet",
+			args: args{
+				faList: getFullEventInfo().Attendants,
+				sId:    4,
+			},
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME,
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   4,
+			},
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			// Fetch the control sheet
+			_ff := FormFiller{}
+			if err := _ff.Init(T_SCH_FORM_NAME, dataSrc.SCH_FORM_EXT); err != nil {
+				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
+			}
+			defer _ff.excel.Close()
+			if err := s.ff.FillWavierSheet(tt.args.faList, tt.args.sId); err != nil {
+				t.Errorf("Error in FillWavierSheet: %v\n", err)
+			}
+			wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(tt.want.sId))
+			if err != nil {
+				t.Errorf("Error in getting rows from 'source_test.xlsx': %v\n", err)
+			}
+			gotRows, err := s.ff.excel.GetRows(s.ff.excel.GetSheetName(tt.args.sId))
+			if err != nil {
+				t.Errorf("Error in getting rows from 'source.xlsx': %v\n", err)
+			}
+			if !cmp.Equal(gotRows, wantRows) {
+				t.Errorf("mismatch with column values: %v\n", cmp.Diff(gotRows, wantRows))
 			}
 		})
 	}

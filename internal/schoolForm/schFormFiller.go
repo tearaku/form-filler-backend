@@ -36,6 +36,8 @@ const (
 	// Starting row index of member / watcher data for CampusSecurity form
 	CAMPUS_SEC_MEMBER_BEGIN = 9
 	CAMPUS_SEC_RESCUE_BEGIN = 5
+	// Starting row index of member data for wavier form
+	WAVIER_FORM_MEMBER_BEGIN = 6
 )
 
 type VarEquipField struct {
@@ -193,6 +195,9 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	// Filling rescues fields
 	if isExt {
 		// For external-use, 山難 ==> 社長
+		if cL == nil {
+			return errors.New("club leader information is not found")
+		}
 		ew.setCellValue(s, "C11", cL.Name)
 		ew.setCellValue(s, "I11", cL.MobileNumber)
 		ew.setCellValue(s, "I12", cL.PhoneNumber)
@@ -258,36 +263,50 @@ func (ff *FormFiller) FillWavierSheet(mL []FullAttendance, sId int) error {
 	s := ff.excel.GetSheetName(sId)
 	// Capacity of each page (2 pages currently exists)
 	pCap := 17
-	r := 6
-	for i, m := range mL {
+	r := WAVIER_FORM_MEMBER_BEGIN
+	for _, m := range mL {
 		if !m.UserProfile.IsStudent {
 			continue
 		}
 		r1, r2 := strconv.Itoa(r), strconv.Itoa(r+1)
-		ew.setCellValue(s, "B"+r1, m.UserProfile.Name)
-		ew.setCellValue(s, "C"+r1, m.UserProfile.MajorYear)
-		ew.setCellValue(s, "D"+r1, m.UserProfile.MobileNumber)
-		ew.setCellValue(s, "D"+r2, m.UserProfile.PhoneNumber)
-		ew.setCellValue(s, "E"+r1, "是")
+		// Compute age based on date of form query
+		isAbove20 := "是"
 		bD := m.UserProfile.DateOfBirth
 		tNow := time.Now()
-		if tNow.Year()-bD.Year() <= 20 {
+		if tNow.Year()-bD.Year() < 20 {
+			isAbove20 = "否"
+		}
+		if tNow.Year()-bD.Year() == 20 {
 			if (tNow.Month() <= bD.Month()) && (tNow.Day() < bD.Day()) {
-				ew.setCellValue(s, "E"+r1, "否")
+				isAbove20 = "否"
 			}
 		}
-		ew.setCellValue(s, "G"+r1, m.UserProfile.EmergencyContactName)
-		ew.setCellValue(s, "H"+r1, m.UserProfile.EmergencyContactMobile)
+		// Preparing to write to rows
+		r1Data := []interface{}{
+			m.UserProfile.Name,
+			m.UserProfile.MajorYear,
+			m.UserProfile.MobileNumber,
+			isAbove20,
+			"",
+			m.UserProfile.EmergencyContactName,
+			m.UserProfile.EmergencyContactMobile,
+		}
+		if err := ff.excel.SetSheetRow(s, "B"+r1, &r1Data); err != nil {
+			return err
+		}
+
+		ew.setCellValue(s, "D"+r2, m.UserProfile.PhoneNumber)
 		ew.setCellValue(s, "H"+r2, m.UserProfile.EmergencyContactPhone)
-		if (i / 6) > pCap {
-			// Gap is 6-rows wide
-			r += 6
+		if ew.err != nil {
+			return ew.err
+		}
+
+		r += 2
+		if ((r - WAVIER_FORM_MEMBER_BEGIN) / 2) >= pCap {
+			// Gap is 4-rows wide
+			r += 4
 			pCap += 17
 		}
-	}
-
-	if ew.err != nil {
-		return ew.err
 	}
 	return nil
 }
