@@ -52,12 +52,12 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 			name: "valid filling of common record sheet (internal use)",
 			args: args{
 				e:   getFullEventInfo(),
-				sId: 2,
+				sId: 0,
 			},
 			want: wantArgs{
 				fName: T_SCH_FORM_NAME,
 				fExt:  dataSrc.SCH_FORM_EXT,
-				sId:   2,
+				sId:   0,
 			},
 		},
 		{
@@ -70,12 +70,12 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 					MobileNumber: "0910-000-000",
 					PhoneNumber:  "01-0000000",
 				},
-				sId: 3,
+				sId: 1,
 			},
 			want: wantArgs{
 				fName: T_SCH_FORM_NAME,
 				fExt:  dataSrc.SCH_FORM_EXT,
-				sId:   3,
+				sId:   1,
 			},
 		},
 	}
@@ -125,12 +125,12 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 			name: "valid call to FillWavierSheet",
 			args: args{
 				faList: getFullEventInfo().Attendants,
-				sId:    4,
+				sId:    2,
 			},
 			want: wantArgs{
 				fName: T_SCH_FORM_NAME,
 				fExt:  dataSrc.SCH_FORM_EXT,
-				sId:   4,
+				sId:   2,
 			},
 		},
 	}
@@ -187,12 +187,12 @@ func (s *FFTestSuite) TestFillCampusSecurity() {
 					MobileNumber: "0910-000-000",
 					PhoneNumber:  "01-0000000",
 				},
-				sId: 5,
+				sId: 3,
 			},
 			want: wantArgs{
 				fName: T_SCH_FORM_NAME,
 				fExt:  dataSrc.SCH_FORM_EXT,
-				sId:   5,
+				sId:   3,
 			},
 		},
 	}

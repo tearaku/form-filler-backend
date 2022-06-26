@@ -84,7 +84,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	ew := &errSetCellValue{e: ff.excel}
 	s := ff.excel.GetSheetName(sId)
 	isExt := true
-	if sId == 2 {
+	if sId == 0 {
 		isExt = false
 	}
 
@@ -360,16 +360,16 @@ func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zW *zip.Writer) err
 		return err
 	}
 	defer s.ff.excel.Close()
-	if err := s.ff.FillCommonRecordSheet(e, nil, 2); err != nil {
+	if err := s.ff.FillCommonRecordSheet(e, nil, 0); err != nil {
 		return err
 	}
-	if err := s.ff.FillCommonRecordSheet(e, cL, 3); err != nil {
+	if err := s.ff.FillCommonRecordSheet(e, cL, 1); err != nil {
 		return err
 	}
-	if err := s.ff.FillWavierSheet(e.Attendants, 4); err != nil {
+	if err := s.ff.FillWavierSheet(e.Attendants, 2); err != nil {
 		return err
 	}
-	if err := s.ff.FillCampusSecurity(e, cL, 5); err != nil {
+	if err := s.ff.FillCampusSecurity(e, cL, 3); err != nil {
 		return err
 	}
 
