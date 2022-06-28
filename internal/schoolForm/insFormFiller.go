@@ -33,26 +33,34 @@ func (s *Service) WriteInsuranceForm(e *EventInfo, zW *zip.Writer) error {
 	eDur := e.BeginDate.Format("2006-01-02") + " ~ " + e.EndDate.Format("2006-01-02")
 	ew.setCellValue(sN, "D2", eDur)
 	ew.setCellValue(sN, "D3", e.Location)
+	if ew.err != nil {
+		return ew.err
+	}
+
 	i := INS_START_ROW
 	for _, m := range e.Attendants {
 		r := strconv.Itoa(i)
-		ew.setCellValue(sN, "B"+r, m.UserProfile.Name)
+		optFields := []string{"", ""}
 		if !m.UserProfile.IsTaiwanese {
-			ew.setCellValue(sN, "C"+r, m.UserProfile.EngName)
-			ew.setCellValue(sN, "D"+r, m.UserProfile.Nationality)
+			optFields[0] = m.UserProfile.EngName
+			optFields[1] = m.UserProfile.Nationality
 		}
-		ew.setCellValue(sN, "E"+r, m.UserProfile.DateOfBirth)
-		ew.setCellValue(sN, "F"+r, m.UserProfile.NationalId)
-		ew.setCellValue(sN, "G"+r, m.UserProfile.MobileNumber)
-		ew.setCellValue(sN, "H"+r, m.UserProfile.Address)
-		ew.setCellValue(sN, "I"+r, m.UserProfile.BeneficiaryName)
-		ew.setCellValue(sN, "J"+r, m.UserProfile.EmergencyContactMobile)
-		ew.setCellValue(sN, "K"+r, m.UserProfile.BeneficiaryRelation)
+		rData := []interface{}{
+			m.UserProfile.Name,
+			optFields[0],
+			optFields[1],
+			m.UserProfile.DateOfBirth,
+			m.UserProfile.NationalId,
+			m.UserProfile.MobileNumber,
+			m.UserProfile.Address,
+			m.UserProfile.BeneficiaryName,
+			m.UserProfile.EmergencyContactMobile,
+			m.UserProfile.BeneficiaryRelation,
+		}
+		if err := s.ff.excel.SetSheetRow(sN, "B"+r, &rData); err != nil {
+			return err
+		}
 		i++
-	}
-
-	if ew.err != nil {
-		return ew.err
 	}
 
 	// Write to zip archive

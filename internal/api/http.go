@@ -66,6 +66,7 @@ func (s *HTTPServer) handleGetEventInfo(w http.ResponseWriter, r *http.Request) 
 			log.Println(err)
 			http.Error(w, "Error: writing data to insurance form failed.", http.StatusInternalServerError)
 		}
+		// TODO: need to convert mountpass to xls before writing to zip...
 		if err = s.schoolForm.WriteMountPass(eventInfo, zipWriter); err != nil {
 			log.Println(err)
 			http.Error(w, "Error: writing data to insurance form failed.", http.StatusInternalServerError)
