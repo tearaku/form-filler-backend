@@ -3,10 +3,11 @@ package database
 import (
 	"context"
 	"os"
-	"teacup1592/form-filler/internal/dataSrc"
-	"teacup1592/form-filler/internal/schoolForm"
 	"testing"
 	"time"
+
+	"teacup1592/form-filler/internal/dataSrc"
+	"teacup1592/form-filler/internal/schoolForm"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"
@@ -384,6 +385,14 @@ func (s *DBTestSuite) TestGetMinProfiles() {
 				&MinProfileList[5],
 				&MinProfileList[6],
 			},
+		},
+		{
+			name: "get with empty id list",
+			args: args{
+				ctx:    context.Background(),
+				idList: []int32{},
+			},
+            want: nil,
 		},
 		{
 			name: "get non-existent min profiles",

@@ -1,20 +1,21 @@
 package schoolForm
 
 import (
-	"archive/zip"
+	"bytes"
+	"errors"
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
 	"strconv"
+
 	"teacup1592/form-filler/internal/dataSrc"
 )
 
 const MPASS_START_ROW = 5
 
-func (s *Service) WriteMountPass(e *EventInfo, zW *zip.Writer) error {
-	if err := s.ff.Init(dataSrc.MOUNT_PASS_FORM_NAME, dataSrc.MOUNT_PASS_FORM_EXT); err != nil {
-		return err
-	}
-	defer s.ff.excel.Close()
-	sN := s.ff.excel.GetSheetName(0)
+func FillMountPass(ff *FormFiller, e *EventInfo) error {
+	sN := ff.excel.GetSheetName(0)
 
 	for i, m := range e.Attendants {
 		r := strconv.Itoa(MPASS_START_ROW + i)
@@ -44,17 +45,52 @@ func (s *Service) WriteMountPass(e *EventInfo, zW *zip.Writer) error {
 			m.UserProfile.EmergencyContactName,
 			m.UserProfile.EmergencyContactMobile,
 		}
-		if err := s.ff.excel.SetSheetRow(sN, "A"+r, &rData); err != nil {
+		if err := ff.excel.SetSheetRow(sN, "A"+r, &rData); err != nil {
 			return err
 		}
 	}
-	// Writing to zip archive
-	w, err := zW.Create("mountpass.xlsx")
+	return nil
+}
+
+func (s *Service) WriteMountPass(e *EventInfo, zA *Archiver) error {
+	ff, ok := s.ffMap[dataSrc.MOUNT_PASS_FORM_NAME]
+	if !ok {
+		return errors.New("failed to fetch mountain pass FormFiller")
+	}
+	if err := ff.Init(dataSrc.MOUNT_PASS_FORM_NAME, dataSrc.MOUNT_PASS_FORM_EXT); err != nil {
+		return err
+	}
+	defer ff.excel.Close()
+	if err := FillMountPass(&ff, e); err != nil {
+		return err
+	}
+
+	// Writing to temp file (for unoconvert usage)
+	tF, err := os.CreateTemp("", "*.xlsx")
 	if err != nil {
 		return err
 	}
-	if err = s.ff.excel.Write(w); err != nil {
+	defer os.Remove(tF.Name())
+	defer tF.Close()
+	if err := ff.excel.Write(tF); err != nil {
 		return err
 	}
+
+	// Converting with unoconvert...
+	w, err := zA.CreateFile("mountpass.xls")
+	if err != nil {
+		return err
+	}
+    defer zA.CloseFile()
+
+	errBuf := &bytes.Buffer{}
+	cmd := exec.Command("unoconvert", "--convert-to", "xls", "--port", os.Getenv("UNOSERVER_PORT"), tF.Name(), "-")
+	cmd.Stdout = *w
+	cmd.Stderr = errBuf
+	if err := cmd.Run(); err != nil {
+		log.Printf("err in unoconvert: %v\n", errBuf.String())
+		return err
+	}
+
 	return nil
 }

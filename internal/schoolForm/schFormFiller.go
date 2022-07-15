@@ -1,13 +1,19 @@
 package schoolForm
 
 import (
-	"archive/zip"
+	"bytes"
 	"errors"
+	"io"
+	"log"
 	"math"
+	"mime/multipart"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
-	"teacup1592/form-filler/internal/dataSrc"
 	"time"
+
+	"teacup1592/form-filler/internal/dataSrc"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -32,7 +38,9 @@ const (
 	// 1st page only holds 13 member lists, after that a jump is needed
 	MEMBER_LIMIT = 13
 	// Beginning row number of the 1st memer list in page 1
-	MEMBER_P1_BEGIN = 39
+	MEMBER_P1_BEGIN           = 39
+	P1_END_EQUIPLIST          = 21
+	P2_END_SECOND_MEMBER_LIST = 66
 	// Starting row index of member / watcher data for CampusSecurity form
 	CAMPUS_SEC_MEMBER_BEGIN = 9
 	CAMPUS_SEC_RESCUE_BEGIN = 5
@@ -52,13 +60,13 @@ type VarEquipField struct {
 	colDes   []string
 }
 
-// Returns the new cumulative offset after this operation (AKA number of total new rows added ABOVE them)
-func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue) error {
+// Returns the number of rows added, -1 & err if func op fails anywhere
+func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue) (int, error) {
 	// Subtracted by 3 as we already have an existing row for use
 	numRows := int(math.Ceil(float64(len(v.dataIdx)-3) / 3.0))
 	for i := 1; i <= numRows; i++ {
 		if err := ew.e.DuplicateRowTo(sName, v.curRowIdx, v.curRowIdx+i); err != nil {
-			return err
+			return -1, err
 		}
 	}
 	for _, i := range v.dataIdx {
@@ -73,9 +81,9 @@ func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue)
 		v.curRowCap--
 	}
 	if ew.err != nil {
-		return ew.err
+		return -1, ew.err
 	}
-	return nil
+	return numRows, nil
 }
 
 // Fills the indices 2 & 3
@@ -184,15 +192,21 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		return ew.err
 	}
 
-	// Filling fields that changes length of page: equip, watchers & rescues
-	if err = cusTEquip.WriteItems(e.TechEquipList, s, ew); err != nil {
-		return err
+	/* Filling fields that changes length of page: equip, watchers & rescues */
+	pOffset := 0
+	for _, l := range [][]Equip{e.TechEquipList, e.EquipList} {
+		offset, err := cusTEquip.WriteItems(l, s, ew)
+		if err != nil {
+			return err
+		}
+		pOffset += offset
 	}
-	if err = cusEquip.WriteItems(e.EquipList, s, ew); err != nil {
+	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P1_END_EQUIPLIST+pOffset)); err != nil {
 		return err
 	}
 
 	// Filling rescues fields
+	pOffset = 0
 	if isExt {
 		// For external-use, 山難 ==> 社長
 		if cL == nil {
@@ -203,7 +217,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		ew.setCellValue(s, "I12", cL.PhoneNumber)
 	}
 	if !isExt {
-		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 11); err != nil {
+		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 11, &pOffset); err != nil {
 			return err
 		}
 	}
@@ -211,22 +225,25 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	// Filling watchers fields
 	if isExt {
 		// For external-use, 留守 ==> 山難
-		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 9); err != nil {
+		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 9, &pOffset); err != nil {
 			return err
 		}
 	}
 	if !isExt {
-		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Watchers, 9); err != nil {
+		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Watchers, 9, &pOffset); err != nil {
 			return err
 		}
 	}
 
+	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P2_END_SECOND_MEMBER_LIST+pOffset)); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Writes fields for watcher / rescue, inserting new rows if necessary
-// r: source row to be copied from
-func WriteRescueWatcherField(f *excelize.File, s string, ew *errSetCellValue, mL []Attendance, r int) error {
+// r: source row to be copied from; pOfs: #of new row count in page 1
+func WriteRescueWatcherField(f *excelize.File, s string, ew *errSetCellValue, mL []Attendance, r int, pOfs *int) error {
 	// Insert the necessary new rows w/ appropriate formatting
 	if len(mL) > 1 {
 		ofs := 2
@@ -244,6 +261,7 @@ func WriteRescueWatcherField(f *excelize.File, s string, ew *errSetCellValue, mL
 				return err
 			}
 			ofs += 2
+			*pOfs += 2
 		}
 	}
 	for i, m := range mL {
@@ -353,34 +371,84 @@ func (ff *FormFiller) FillCampusSecurity(e *EventInfo, cL *MinProfile, sId int) 
 	return nil
 }
 
-// TODO?: modular filling instead of sequential filling of data
-// (to reduce repeated reads)
-func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zW *zip.Writer) error {
-	if err := s.ff.Init(dataSrc.SCH_FORM_NAME, dataSrc.SCH_FORM_EXT); err != nil {
-		return err
-	}
-	defer s.ff.excel.Close()
-	if err := s.ff.FillCommonRecordSheet(e, nil, 0); err != nil {
-		return err
-	}
-	if err := s.ff.FillCommonRecordSheet(e, cL, 1); err != nil {
-		return err
-	}
-	if err := s.ff.FillWavierSheet(e.Attendants, 2); err != nil {
-		return err
-	}
-	if err := s.ff.FillCampusSecurity(e, cL, 3); err != nil {
-		return err
-	}
-
-	// TODO: Refactor? XDDD got the exact code in 3 places
-	// Write to zip archive
-	w, err := zW.Create("schoolForm.xlsx")
+func GotenbergConvert(e *excelize.File, zA *Archiver) error {
+	body := &bytes.Buffer{}
+	bodWriter := multipart.NewWriter(body)
+	part, err := bodWriter.CreateFormFile("files", "conv.xlsx")
 	if err != nil {
 		return err
 	}
-	if err = s.ff.excel.Write(w); err != nil {
+	if err := e.Write(part); err != nil {
 		return err
 	}
+	bodWriter.Close()
+
+	req, err := http.NewRequest(http.MethodPost, os.Getenv("GOTENBERG_API"), body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", bodWriter.FormDataContentType())
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return errors.New("converting to pdf failed")
+	}
+
+	// Writing to archive
+	w, err := zA.CreateFile("schoolForm.pdf")
+	if err != nil {
+		return err
+	}
+	defer zA.CloseFile()
+	if _, err := io.Copy(*w, res.Body); err != nil {
+		log.Printf("err in gotenberg copy: %v\n", err)
+		return err
+	}
+
+	return nil
+}
+
+// TODO?: modular filling instead of sequential filling of data
+// (to reduce repeated reads)
+func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error {
+	ff, ok := s.ffMap[dataSrc.SCH_FORM_NAME]
+	if !ok {
+		return errors.New("failed to fetch school form FormFiller")
+	}
+	if err := ff.Init(dataSrc.SCH_FORM_NAME, dataSrc.SCH_FORM_EXT); err != nil {
+		return err
+	}
+	defer ff.excel.Close()
+	if err := ff.FillCommonRecordSheet(e, nil, 0); err != nil {
+		return err
+	}
+	if err := ff.FillCommonRecordSheet(e, cL, 1); err != nil {
+		return err
+	}
+	if err := ff.FillWavierSheet(e.Attendants, 2); err != nil {
+		return err
+	}
+	if err := ff.FillCampusSecurity(e, cL, 3); err != nil {
+		return err
+	}
+
+	// Write to archive
+	w1, err := zA.CreateFile("schoolForm.xlsx")
+	if err != nil {
+		return err
+	}
+	if err = ff.excel.Write(*w1); err != nil {
+		zA.CloseFile()
+		return err
+	}
+	zA.CloseFile()
+
+	if err := GotenbergConvert(ff.excel, zA); err != nil {
+		return err
+	}
+
 	return nil
 }

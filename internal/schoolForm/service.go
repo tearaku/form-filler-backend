@@ -1,14 +1,23 @@
 package schoolForm
 
-import "context"
+import (
+	"context"
+)
 
-func NewService(db DB, ff FormFiller) *Service {
-	return &Service{db: db, ff: ff}
+func NewService(db DB, ffList []string) *Service {
+    ffMap := make(map[string]FormFiller)
+    for _, v := range ffList {
+        ffMap[v] = FormFiller{}
+    }
+    return &Service{
+        db: db,
+        ffMap: ffMap,
+    }
 }
 
 type Service struct {
 	db DB
-	ff FormFiller
+    ffMap map[string]FormFiller
 }
 
 type DB interface {

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 )
 
 var (
-	httpAddr = flag.String("http", "localhost:8080", "HTTP service address to listen for incoming requests on")
+    httpAddr = flag.String("http", ":8080", "HTTP service address to listen for incoming requests on")
 )
 
 func main() {
@@ -31,9 +32,16 @@ func main() {
 	s := &api.Server{
 		SchoolForm: schoolForm.NewService(
 			&database.DB{DbPool: connPool},
-			schoolForm.FormFiller{},
+            []string{
+                dataSrc.SCH_FORM_NAME,
+                dataSrc.INSUR_FORM_NAME,
+                dataSrc.MOUNT_PASS_FORM_NAME,
+            },
 		),
 		HTTPAddress: *httpAddr,
+		Converter: &api.Converter{
+			Unoserver: exec.Command("unoserver", "--port", "9000"),
+		},
 	}
 	ec := make(chan error, 1)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

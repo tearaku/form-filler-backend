@@ -1,8 +1,12 @@
 package schoolForm
 
 import (
+	"archive/zip"
 	"io"
+	"os"
 	"strconv"
+	"sync"
+
 	"teacup1592/form-filler/internal/dataSrc"
 
 	"github.com/xuri/excelize/v2"
@@ -53,6 +57,52 @@ func DuplicateRowWithStyle(f *excelize.File, s string, r1, r2 int, c1, c2 rune) 
 		if err = f.SetCellStyle(s, cell, cell, sId); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+type Archiver struct {
+	TempF *os.File
+	ZipW  *zip.Writer
+	mutex sync.Mutex
+}
+
+func NewArchiver(pattern string) (*Archiver, error) {
+	f, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return nil, err
+	}
+	a := Archiver{
+		TempF: f,
+		ZipW:    zip.NewWriter(f),
+		mutex: sync.Mutex{},
+	}
+	return &a, nil
+}
+
+func (a *Archiver) CreateFile(name string) (*io.Writer, error) {
+	a.mutex.Lock()
+	w, err := a.ZipW.Create(name)
+	if err != nil {
+		// Note: if Create() failed & mutex is not unlockd, other goroutines
+		// will be deadlocked waiting for the mutex to be released (http.go
+		// expects to receive three values through channel)
+		a.mutex.Unlock()
+		return nil, err
+	}
+	return &w, nil
+}
+
+func (a *Archiver) CloseFile() {
+	a.mutex.Unlock()
+}
+
+func (a *Archiver) Cleanup() error {
+	if err := a.TempF.Close(); err != nil {
+		return err
+	}
+	if err := os.Remove(a.TempF.Name()); err != nil {
+		return err
 	}
 	return nil
 }

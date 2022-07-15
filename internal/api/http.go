@@ -3,10 +3,13 @@ package api
 // Various HTTP REST endpoint handlers
 
 import (
-	"archive/zip"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
+
 	"teacup1592/form-filler/internal/schoolForm"
 )
 
@@ -33,53 +36,75 @@ func (s *HTTPServer) handleGetEventInfo(w http.ResponseWriter, r *http.Request) 
 		// Fetch relevant data from database based on event ID
 		eventInfo, err := s.schoolForm.GetEventInfo(r.Context(), schoolForm.GetEventInfoParams{EventID: eventId})
 		if err != nil {
-			log.Println(err)
+			log.Println(err.Error())
 			http.Error(w, "Error: fetching event data from db failed.", http.StatusInternalServerError)
+			return
 		}
 		err = s.schoolForm.FetchAttendances(r.Context(), schoolForm.FetchAttendancesParams{
 			EventInfo: eventInfo,
 		})
 		if err != nil {
-			log.Println(err)
+			log.Println(err.Error())
 			http.Error(w, "Error: fetching event data from db failed.", http.StatusInternalServerError)
+			return
 		}
 		clubLeader, err := s.schoolForm.GetMemberByDept(r.Context(), schoolForm.GetMemberByDeptParams{
 			Description: "社長",
 		})
 		if err != nil {
-			log.Println(err)
+			log.Println(err.Error())
 			http.Error(w, "Error: fetching club leader from db failed.", http.StatusInternalServerError)
+			return
 		}
+
 		// Begin modifying excel data, and adding to zip file
-		zF, err := os.CreateTemp("", "event_"+eventId+"_*.zip")
-		zFName := zF.Name()
+		zA, err := schoolForm.NewArchiver("event_"+eventId+"_*.zip")
 		if err != nil {
 			http.Error(w, "Error: failed to create zip file.", http.StatusInternalServerError)
+			return
 		}
-		defer os.Remove(zF.Name())
-		zipWriter := zip.NewWriter(zF)
-		if err = s.schoolForm.WriteSchForm(eventInfo, clubLeader, zipWriter); err != nil {
-			log.Println(err)
-			http.Error(w, "Error: writing data to school form failed.", http.StatusInternalServerError)
+        defer zA.Cleanup()
+		ec := make(chan error, 3)
+		go func() {
+			if err = s.schoolForm.WriteSchForm(eventInfo, clubLeader, zA); err != nil {
+                log.Printf("writeSchForm err: %v\n", err.Error())
+				ec <- errors.New("error: writing data to school form failed")
+                return
+			}
+			ec <- nil
+		}()
+		go func() {
+			if err = s.schoolForm.WriteInsuranceForm(eventInfo, zA); err != nil {
+                log.Printf("writeInsForm err: %v\n", err.Error())
+				ec <- errors.New("error: writing data to insurance form failed")
+                return
+			}
+			ec <- nil
+		}()
+		go func() {
+			if err = s.schoolForm.WriteMountPass(eventInfo, zA); err != nil {
+                log.Printf("writeMountPass err: %v\n", err.Error())
+				ec <- errors.New("error: writing data to mountain pass form failed")
+                return
+			}
+			ec <- nil
+		}()
+        var eMsg strings.Builder
+		for i := 0; i < 3; i++ {
+			if err := <-ec; err != nil {
+                eMsg.WriteString(fmt.Sprintf("err %d: %s\n", i+1, err.Error()))
+			}
 		}
-		if err = s.schoolForm.WriteInsuranceForm(eventInfo, zipWriter); err != nil {
-			log.Println(err)
-			http.Error(w, "Error: writing data to insurance form failed.", http.StatusInternalServerError)
-		}
-		// TODO: need to convert mountpass to xls before writing to zip...
-		if err = s.schoolForm.WriteMountPass(eventInfo, zipWriter); err != nil {
-			log.Println(err)
-			http.Error(w, "Error: writing data to insurance form failed.", http.StatusInternalServerError)
-		}
-		// TODO: Close the temp file, zipWriter & serve the file
-		zipWriter.Close()
-		zF.Close()
+        if eMsg.Len() != 0 {
+			http.Error(w, eMsg.String(), http.StatusInternalServerError)
+            return
+        }
+        zA.ZipW.Close()
 		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("FRONTEND_URL"))
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		http.ServeFile(w, r, zFName)
-		// TODO: Export to PDF via gotenburg (hosted elsewhere? Dockerfile)
-		// -> need to convert to ods first before converting to PDF @@
+		http.ServeFile(w, r, zA.TempF.Name())
 	default:
 		http.Error(w, "Error: http method not allowed.", http.StatusMethodNotAllowed)
+		return
 	}
 }

@@ -120,6 +120,10 @@ func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.Us
 
 func (db *DB) GetMinProfiles(ctx context.Context, idList []int32) ([]*schoolForm.MinProfile, error) {
 	var aList []*schoolForm.MinProfile
+    // Allow for empty param query (empty list instead of err)
+    if len(idList) == 0 {
+        return aList, nil
+    }
 	var args = pgtype.Int4Array{}
 	if err := args.Set(idList); err != nil {
 		log.Printf("err in setting Int4Array in Db.GetMinProfiles(): %v\n", err)

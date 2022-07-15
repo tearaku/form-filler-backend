@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -41,13 +42,42 @@ func TestSourceLocal(t *testing.T) {
 }
 
 func TestLocalEnvSetup(t *testing.T) {
-	t.Run("env variables from .env loaded", func(t *testing.T) {
-		if err := LocalEnvSetupInTest(); err != nil {
-			t.Fatal(err)
-		}
-		db := os.Getenv("DATABASE_URL")
-		if db != "postgres://teacup1592@localhost:5432/postgres" {
-			t.Fatalf("mismatch in db URL retrieved: %v", db)
-		}
-	})
+	tests := []struct {
+		name string
+		arg  string
+		want string
+	}{
+		{
+			name: "database url",
+			arg:  "DATABASE_URL",
+			want: "postgres://teacup1592@localhost:5432/postgres",
+		},
+		{
+			name: "frontend url",
+			arg:  "FRONTEND_URL",
+			want: "http://localhost:3000",
+		},
+		{
+			name: "gotenberg api",
+			arg:  "GOTENBERG_API",
+			want: "http://gotenberg:3000/forms/libreoffice/convert",
+		},
+		{
+			name: "unoserver port",
+			arg:  "UNOSERVER_PORT",
+			want: "9000",
+		},
+	}
+
+	if err := LocalEnvSetupInTest(); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := os.Getenv(tt.arg)
+			if !cmp.Equal(got, tt.want) {
+				t.Errorf("mismatch with env variable value: %v\n", cmp.Diff(got, tt.want))
+			}
+		})
+	}
 }

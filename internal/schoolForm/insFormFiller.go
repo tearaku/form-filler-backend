@@ -1,7 +1,7 @@
 package schoolForm
 
 import (
-	"archive/zip"
+	"errors"
 	"strconv"
 	"teacup1592/form-filler/internal/dataSrc"
 
@@ -10,22 +10,18 @@ import (
 
 const INS_START_ROW = 6
 
-func (s *Service) WriteInsuranceForm(e *EventInfo, zW *zip.Writer) error {
-	if err := s.ff.Init(dataSrc.INSUR_FORM_NAME, dataSrc.INSUR_FORM_EXT); err != nil {
-		return err
-	}
-	defer s.ff.excel.Close()
-	ew := &errSetCellValue{e: s.ff.excel}
-	sN := s.ff.excel.GetSheetName(0)
+func FillInsuranceForm(ff *FormFiller, e *EventInfo) error {
+	ew := &errSetCellValue{e: ff.excel}
+	sN := ff.excel.GetSheetName(0)
 
 	dateExpr := "yyyy/mm/dd"
-	if dFormat, err := s.ff.excel.NewStyle(&excelize.Style{
+	if dFormat, err := ff.excel.NewStyle(&excelize.Style{
 		CustomNumFmt: &dateExpr,
 	}); err != nil {
 		return err
 	} else {
 		end := strconv.Itoa(INS_START_ROW + len(e.Attendants))
-		if err = s.ff.excel.SetCellStyle(sN, "E6", "E"+end, dFormat); err != nil {
+		if err = ff.excel.SetCellStyle(sN, "E6", "E"+end, dFormat); err != nil {
 			return err
 		}
 	}
@@ -57,18 +53,35 @@ func (s *Service) WriteInsuranceForm(e *EventInfo, zW *zip.Writer) error {
 			m.UserProfile.EmergencyContactMobile,
 			m.UserProfile.BeneficiaryRelation,
 		}
-		if err := s.ff.excel.SetSheetRow(sN, "B"+r, &rData); err != nil {
+		if err := ff.excel.SetSheetRow(sN, "B"+r, &rData); err != nil {
 			return err
 		}
 		i++
 	}
+    return nil
+}
+
+
+func (s *Service) WriteInsuranceForm(e *EventInfo, zA *Archiver) error {
+    ff, ok := s.ffMap[dataSrc.INSUR_FORM_NAME]
+    if !ok {
+        return errors.New("failed to fetch insurance FormFiller")
+    }
+	if err := ff.Init(dataSrc.INSUR_FORM_NAME, dataSrc.INSUR_FORM_EXT); err != nil {
+		return err
+	}
+	defer ff.excel.Close()
+    if err := FillInsuranceForm(&ff, e); err != nil {
+        return err
+    }
 
 	// Write to zip archive
-	w, err := zW.Create("insurance.xlsx")
+	w, err := zA.CreateFile("insurance.xlsx")
 	if err != nil {
 		return err
 	}
-	if err = s.ff.excel.Write(w); err != nil {
+    defer zA.CloseFile()
+	if err = ff.excel.Write(*w); err != nil {
 		return err
 	}
 	return nil
