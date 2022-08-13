@@ -14,6 +14,7 @@ services:
       - gotenberg
     environment:
       GOTENBERG_API: http://gotenberg:3000/forms/libreoffice/convert
+      GOTENBERG_HEALTH: http://gotenberg:3000/health
       DATABASE_URL: ${DATABASE_URL}
       UNOSERVER_PORT: ${UNOSERVER_PORT}
       FRONTEND_URL: ${FRONTEND_URL}

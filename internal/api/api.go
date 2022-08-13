@@ -116,12 +116,14 @@ func (c *Converter) Run() error {
 	// Start unoserver
 	eBuf := &bytes.Buffer{}
 	c.Unoserver.Stderr = eBuf
+    oBuf := &bytes.Buffer{}
+    c.Unoserver.Stdout = oBuf
 	if err := c.Unoserver.Start(); err != nil {
 		// TODO: might be redundant w/ how main is doing log.Fatal...?
 		log.Printf("err: in starting unoserver\n%v\n", eBuf.String())
 		return errors.New("err: in starting unoserver, " + err.Error())
 	}
-	log.Printf("Unoserver listening at port %v\n", c.Unoserver.Args[2])
+    log.Printf("Unoserver status:\n%v\n", oBuf.String())
 	return nil
 }
 

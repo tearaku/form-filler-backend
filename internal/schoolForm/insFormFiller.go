@@ -3,6 +3,7 @@ package schoolForm
 import (
 	"errors"
 	"strconv"
+
 	"teacup1592/form-filler/internal/dataSrc"
 
 	"github.com/xuri/excelize/v2"
@@ -58,29 +59,28 @@ func FillInsuranceForm(ff *FormFiller, e *EventInfo) error {
 		}
 		i++
 	}
-    return nil
+	return nil
 }
 
-
 func (s *Service) WriteInsuranceForm(e *EventInfo, zA *Archiver) error {
-    ff, ok := s.ffMap[dataSrc.INSUR_FORM_NAME]
-    if !ok {
-        return errors.New("failed to fetch insurance FormFiller")
-    }
+	ff, ok := s.ffMap[dataSrc.INSUR_FORM_NAME]
+	if !ok {
+		return errors.New("failed to fetch insurance FormFiller")
+	}
 	if err := ff.Init(dataSrc.INSUR_FORM_NAME, dataSrc.INSUR_FORM_EXT); err != nil {
 		return err
 	}
 	defer ff.excel.Close()
-    if err := FillInsuranceForm(&ff, e); err != nil {
-        return err
-    }
+	if err := FillInsuranceForm(&ff, e); err != nil {
+		return err
+	}
 
 	// Write to zip archive
 	w, err := zA.CreateFile("insurance.xlsx")
 	if err != nil {
 		return err
 	}
-    defer zA.CloseFile()
+	defer zA.CloseFile()
 	if err = ff.excel.Write(*w); err != nil {
 		return err
 	}

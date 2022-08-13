@@ -1,9 +1,12 @@
 FROM golang:1.18-bullseye as baseExe
 WORKDIR /backend
-# TODO: switch to multistage building for prod
-RUN apt-get update && apt install -y libreoffice
-RUN apt-get install -y python3-pip && pip3 install unoserver 
 COPY . .
 RUN go mod download
 RUN go build -o /formfiller
+
+FROM ubuntu:22.04
+WORKDIR /app
+RUN apt-get update && apt install -y libreoffice
+RUN apt-get install -y python3-pip && pip3 install unoserver 
+COPY --from=baseExe /formfiller /formfiller
 CMD ["/formfiller"]

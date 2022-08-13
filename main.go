@@ -15,9 +15,7 @@ import (
 	"teacup1592/form-filler/internal/schoolForm"
 )
 
-var (
-    httpAddr = flag.String("http", ":8080", "HTTP service address to listen for incoming requests on")
-)
+var httpAddr = flag.String("http", ":8080", "HTTP service address to listen for incoming requests on")
 
 func main() {
 	// TODO: Local settings setup
@@ -32,15 +30,15 @@ func main() {
 	s := &api.Server{
 		SchoolForm: schoolForm.NewService(
 			&database.DB{DbPool: connPool},
-            []string{
-                dataSrc.SCH_FORM_NAME,
-                dataSrc.INSUR_FORM_NAME,
-                dataSrc.MOUNT_PASS_FORM_NAME,
-            },
+			[]string{
+				dataSrc.SCH_FORM_NAME,
+				dataSrc.INSUR_FORM_NAME,
+				dataSrc.MOUNT_PASS_FORM_NAME,
+			},
 		),
 		HTTPAddress: *httpAddr,
 		Converter: &api.Converter{
-			Unoserver: exec.Command("unoserver", "--port", "9000"),
+			Unoserver: exec.Command("unoserver"),
 		},
 	}
 	ec := make(chan error, 1)

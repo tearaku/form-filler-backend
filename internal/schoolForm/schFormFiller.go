@@ -1,14 +1,8 @@
 package schoolForm
 
 import (
-	"bytes"
 	"errors"
-	"io"
-	"log"
 	"math"
-	"mime/multipart"
-	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -368,46 +362,6 @@ func (ff *FormFiller) FillCampusSecurity(e *EventInfo, cL *MinProfile, sId int) 
 	if ew.err != nil {
 		return ew.err
 	}
-	return nil
-}
-
-func GotenbergConvert(e *excelize.File, zA *Archiver) error {
-	body := &bytes.Buffer{}
-	bodWriter := multipart.NewWriter(body)
-	part, err := bodWriter.CreateFormFile("files", "conv.xlsx")
-	if err != nil {
-		return err
-	}
-	if err := e.Write(part); err != nil {
-		return err
-	}
-	bodWriter.Close()
-
-	req, err := http.NewRequest(http.MethodPost, os.Getenv("GOTENBERG_API"), body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", bodWriter.FormDataContentType())
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return errors.New("converting to pdf failed")
-	}
-
-	// Writing to archive
-	w, err := zA.CreateFile("schoolForm.pdf")
-	if err != nil {
-		return err
-	}
-	defer zA.CloseFile()
-	if _, err := io.Copy(*w, res.Body); err != nil {
-		log.Printf("err in gotenberg copy: %v\n", err)
-		return err
-	}
-
 	return nil
 }
 

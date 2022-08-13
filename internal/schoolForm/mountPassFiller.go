@@ -81,13 +81,19 @@ func (s *Service) WriteMountPass(e *EventInfo, zA *Archiver) error {
 	if err != nil {
 		return err
 	}
-    defer zA.CloseFile()
+	defer zA.CloseFile()
 
 	errBuf := &bytes.Buffer{}
-	cmd := exec.Command("unoconvert", "--convert-to", "xls", "--port", os.Getenv("UNOSERVER_PORT"), tF.Name(), "-")
+	cmd := exec.Command("unoconvert", "--convert-to", "xls", tF.Name(), "-")
 	cmd.Stdout = *w
 	cmd.Stderr = errBuf
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	retry := 0
+	for retry < 2 && err != nil {
+		retry++
+		err = cmd.Run()
+	}
+	if err != nil {
 		log.Printf("err in unoconvert: %v\n", errBuf.String())
 		return err
 	}
