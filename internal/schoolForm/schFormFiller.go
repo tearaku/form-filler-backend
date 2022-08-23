@@ -2,6 +2,7 @@ package schoolForm
 
 import (
 	"errors"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -56,6 +57,9 @@ type VarEquipField struct {
 
 // Returns the number of rows added, -1 & err if func op fails anywhere
 func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue) (int, error) {
+	if len(v.dataIdx) == 0 {
+		return 0, nil
+	}
 	// Subtracted by 3 as we already have an existing row for use
 	numRows := int(math.Ceil(float64(len(v.dataIdx)-3) / 3.0))
 	for i := 1; i <= numRows; i++ {
@@ -195,6 +199,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		}
 		pOffset += offset
 	}
+    log.Printf("sch form page break: %v\n", P1_END_EQUIPLIST+pOffset)
 	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P1_END_EQUIPLIST+pOffset)); err != nil {
 		return err
 	}

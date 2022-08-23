@@ -451,6 +451,14 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 			},
 			want: &MinProfileList[2],
 		},
+        {
+            name: "get valid multi-hit on department head: 嚮導部長",
+            args: args{
+                ctx: context.Background(),
+                des: "嚮導部長",
+            },
+            want: &MinProfileList[1],
+        },
 		{
 			name: "get valid departmenet head: 社產組長",
 			args: args{
@@ -473,7 +481,7 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 				ctx: context.Background(),
 				des: "香菇部長",
 			},
-			wantErr: "failed to parse member data from database",
+            wantErr: "no members with specified department is fetched",
 		},
 	}
 	for _, tt := range tests {

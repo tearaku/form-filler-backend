@@ -6,8 +6,7 @@ services:
       - "gotenberg"
       - "--pdfengines-engines=uno-pdfengine"
   backend:
-    image: form-filler-backend
-    build: .
+    image: "${FF_IMAGE_URL}"
     ports:
       - "8080:8080"
     depends_on:

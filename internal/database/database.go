@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+
 	"teacup1592/form-filler/internal/schoolForm"
 
 	"github.com/georgysavva/scany/pgxscan"
@@ -120,11 +121,11 @@ func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.Us
 
 func (db *DB) GetMinProfiles(ctx context.Context, idList []int32) ([]*schoolForm.MinProfile, error) {
 	var aList []*schoolForm.MinProfile
-    // Allow for empty param query (empty list instead of err)
-    if len(idList) == 0 {
-        return aList, nil
-    }
-	var args = pgtype.Int4Array{}
+	// Allow for empty param query (empty list instead of err)
+	if len(idList) == 0 {
+		return aList, nil
+	}
+	args := pgtype.Int4Array{}
 	if err := args.Set(idList); err != nil {
 		log.Printf("err in setting Int4Array in Db.GetMinProfiles(): %v\n", err)
 		return nil, errors.New("failed to setup sql for fetching minimal profiles")
@@ -159,12 +160,25 @@ func (db *DB) GetMinProfiles(ctx context.Context, idList []int32) ([]*schoolForm
 
 func (db *DB) GetMemberByDept(ctx context.Context, des string) (*schoolForm.MinProfile, error) {
 	var member MinProfile
+	// Fetch the first match of given prefix
+	// NOTE: order is based on userId, so there should only be 1 club leader when
+	// executing backend code! (AKA transitory phase should end ASAP)
 	const sql = `SELECT * FROM "MinimalProfile"
 	WHERE "userId" = ANY (SELECT "userId" FROM "Department" WHERE "description" LIKE $1)`
-	rows, err := db.DbPool.Query(ctx, sql, des)
+	// Add wildcard to allow existence of two club leaders during transitory phase
+	// Simply to skip the need to ask 網管 to assign new club leaders
+	desWild := des + "%"
+	log.Printf("argument inputted is: %s\n", desWild)
+	rows, err := db.DbPool.Query(ctx, sql, desWild)
 	if err == nil {
 		defer rows.Close()
-		if err := pgxscan.ScanOne(&member, rows); err != nil {
+		// Prepare the row for reading & read only the 1st row
+		// Wildward is not meant to be handled here (see above)
+		if !rows.Next() {
+			log.Printf("Empty Department result set\n")
+			return nil, errors.New("no members with specified department is fetched")
+		}
+		if err := pgxscan.ScanRow(&member, rows); err != nil {
 			log.Printf("Scanning into struct in Db.GetMemberByDept() failed: %v\n", err)
 			return nil, errors.New("failed to parse member data from database")
 		}
