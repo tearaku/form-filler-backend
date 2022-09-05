@@ -2,7 +2,6 @@ package schoolForm
 
 import (
 	"errors"
-	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -55,6 +54,28 @@ type VarEquipField struct {
 	colDes   []string
 }
 
+// Preallocate the rows necessary for non-base equipment fields
+// Also returns err if passed-in equipment list is smaller than the base reference eqip list
+func (v *VarEquipField) AllocateRows(e []Equip, baseE *map[string]string, sName string, ew *errSetCellValue) error {
+	// #of items in event's equip list is same as the base reference equip list
+	// ==> then there are no additional equipment added
+	varEquipLen := len(e) - len(*baseE)
+	if varEquipLen == 0 {
+		return nil
+	}
+	if varEquipLen < 0 {
+		return errors.New("given equipment list contains less items than the reference base list")
+	}
+	// Subtracted by 3 as we already have an existing row for use
+	numRows := int(math.Ceil(float64(varEquipLen-3) / 3.0))
+	for i := 1; i <= numRows; i++ {
+		if err := ew.e.DuplicateRowTo(sName, v.curRowIdx, v.curRowIdx+i); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Returns the number of rows added, -1 & err if func op fails anywhere
 func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue) (int, error) {
 	if len(v.dataIdx) == 0 {
@@ -62,11 +83,13 @@ func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue)
 	}
 	// Subtracted by 3 as we already have an existing row for use
 	numRows := int(math.Ceil(float64(len(v.dataIdx)-3) / 3.0))
+    /*
 	for i := 1; i <= numRows; i++ {
 		if err := ew.e.DuplicateRowTo(sName, v.curRowIdx, v.curRowIdx+i); err != nil {
 			return -1, err
 		}
 	}
+    */
 	for _, i := range v.dataIdx {
 		if v.curRowCap == 0 {
 			v.curRowIdx++
@@ -117,10 +140,11 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		ew.setCellValue(s, "I6", mentor.MobileNumber)
 		ew.setCellValue(s, "I7", mentor.PhoneNumber)
 	}
+	// Defaults to 領隊 as 保險 if not set
 	if m, err := e.FindMemberByJob("保"); err == nil {
 		ew.setCellValue(s, "C8", m.Name)
 	} else {
-		return err
+		ew.setCellValue(s, "C8", host.Name)
 	}
 	if dur := int(e.EndDate.Sub(e.BeginDate).Hours()/24) + 1; dur < 0 {
 		return errors.New("event duration cannot be negative, " + strconv.Itoa(dur))
@@ -137,36 +161,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	ew.setCellValue(s, "A19", e.MapCoordSystem)
 	ew.setCellValue(s, "C20", e.Records)
 
-	equipColDes := [3]string{"C", "G", "J"}
-	equipColNames := [3]string{"A", "E", "H"}
-	cusEquip := VarEquipField{
-		curRowCap: 3,
-		curRowIdx: 29,
-		colNames:  equipColNames[:],
-		colDes:    equipColDes[:],
-	}
-	for i, eq := range e.EquipList {
-		c, ok := equipList[eq.Name]
-		if ok {
-			ew.setCellValue(s, c, eq.Des)
-		} else {
-			cusEquip.dataIdx = append(cusEquip.dataIdx, i)
-		}
-	}
-	cusTEquip := VarEquipField{
-		curRowCap: 3,
-		curRowIdx: 35,
-		colNames:  equipColNames[:],
-		colDes:    equipColDes[:],
-	}
-	for i, eq := range e.TechEquipList {
-		c, ok := tEquipList[eq.Name]
-		if ok {
-			ew.setCellValue(s, c, eq.Des)
-		} else {
-			cusTEquip.dataIdx = append(cusTEquip.dataIdx, i)
-		}
-	}
+    // Filling in attendance info
 	cRow := MEMBER_P1_BEGIN
 	for _, m := range e.Attendants {
 		if isExt && !m.UserProfile.IsStudent {
@@ -186,21 +181,57 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		ew.setCellValue(s, "J"+r1, m.Jobs)
 		cRow += 2
 	}
+
+    // Filling in equipment info
+	equipColDes := [3]string{"C", "G", "J"}
+	equipColNames := [3]string{"A", "E", "H"}
+	cusEquip := VarEquipField{
+		curRowCap: 3,
+		curRowIdx: 29,
+		colNames:  equipColNames[:],
+		colDes:    equipColDes[:],
+	}
+    cusEquip.AllocateRows(e.EquipList, &equipList, s, ew)
+	for i, eq := range e.EquipList {
+		c, ok := equipList[eq.Name]
+		if ok {
+			ew.setCellValue(s, c, eq.Des)
+		} else {
+			cusEquip.dataIdx = append(cusEquip.dataIdx, i)
+		}
+	}
+	cusTEquip := VarEquipField{
+		curRowCap: 3,
+		curRowIdx: 35,
+		colNames:  equipColNames[:],
+		colDes:    equipColDes[:],
+	}
+    cusTEquip.AllocateRows(e.TechEquipList, &tEquipList, s, ew)
+	for i, eq := range e.TechEquipList {
+		c, ok := tEquipList[eq.Name]
+		if ok {
+			ew.setCellValue(s, c, eq.Des)
+		} else {
+			cusTEquip.dataIdx = append(cusTEquip.dataIdx, i)
+		}
+	}
 	if ew.err != nil {
 		return ew.err
 	}
 
 	/* Filling fields that changes length of page: equip, watchers & rescues */
 	pOffset := 0
-	for _, l := range [][]Equip{e.TechEquipList, e.EquipList} {
-		offset, err := cusTEquip.WriteItems(l, s, ew)
-		if err != nil {
-			return err
-		}
-		pOffset += offset
-	}
-    log.Printf("sch form page break: %v\n", P1_END_EQUIPLIST+pOffset)
-	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P1_END_EQUIPLIST+pOffset)); err != nil {
+	offset, err := cusTEquip.WriteItems(e.TechEquipList, s, ew)
+    if err != nil {
+        return err
+    }
+    pOffset += offset
+    offset, err = cusEquip.WriteItems(e.EquipList, s, ew)
+    if err != nil {
+        return err
+    }
+    pOffset += offset
+	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P2_END_SECOND_MEMBER_LIST+pOffset)); err != nil {
 		return err
 	}
 
@@ -234,7 +265,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		}
 	}
 
-	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P2_END_SECOND_MEMBER_LIST+pOffset)); err != nil {
+	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P1_END_EQUIPLIST+pOffset)); err != nil {
 		return err
 	}
 	return nil

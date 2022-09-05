@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"teacup1592/form-filler/internal/schoolForm"
 
@@ -168,7 +169,6 @@ func (db *DB) GetMemberByDept(ctx context.Context, des string) (*schoolForm.MinP
 	// Add wildcard to allow existence of two club leaders during transitory phase
 	// Simply to skip the need to ask 網管 to assign new club leaders
 	desWild := des + "%"
-	log.Printf("argument inputted is: %s\n", desWild)
 	rows, err := db.DbPool.Query(ctx, sql, desWild)
 	if err == nil {
 		defer rows.Close()
@@ -191,4 +191,32 @@ func (db *DB) GetMemberByDept(ctx context.Context, des string) (*schoolForm.MinP
 		return nil, errors.New("failed to get member by department from database")
 	}
 	return member.dto(), nil
+}
+
+// Checks if session with given user id exists & is not expired
+func (db *DB) CheckSession(ctx context.Context, userId int) error {
+	var dbUserId int
+	const sql = `SELECT "user_id" FROM "sessions"
+    WHERE "user_id" = $1 AND "expires" > $2 ORDER BY "expires" DESC`
+	rows, err := db.DbPool.Query(ctx, sql, userId, time.Now().Format(time.RFC3339))
+	if err == nil {
+		defer rows.Close()
+		// Prepare the row for reading & read only the 1st row
+		if !rows.Next() {
+			log.Printf("Empty result set in session fetch\n")
+			return errors.New("no valid session were avaliable")
+		}
+		if err := pgxscan.ScanRow(&dbUserId, rows); err != nil {
+			log.Printf("Scanning into int in Db.CheckSession() failed: %v\n", err)
+			return errors.New("failed to parse int data from database")
+		}
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	if err != nil {
+		log.Printf("Get session from database: failed, %v\n", err)
+		return errors.New("failed to get session from database")
+	}
+	return nil
 }

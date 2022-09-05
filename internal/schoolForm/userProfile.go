@@ -1,6 +1,9 @@
 package schoolForm
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type UserProfile struct {
 	UserId                 int32     `json:"userId"`
@@ -32,4 +35,11 @@ type MinProfile struct {
 	Name         string `json:"name"`
 	MobileNumber string `json:"mobileNumber"`
 	PhoneNumber  string `json:"phoneNumber,omitempty"`
+}
+
+func (s *Service) CheckSession(ctx context.Context, userId int) error {
+	if err := s.db.CheckSession(ctx, userId); err != nil {
+		return err
+	}
+	return nil
 }

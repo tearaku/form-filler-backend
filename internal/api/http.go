@@ -31,7 +31,7 @@ type HTTPServer struct {
 func (s *HTTPServer) handleGetEventInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET")
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Access-Control-Max-Age", "3600")
 		w.WriteHeader(http.StatusNoContent)
@@ -39,19 +39,15 @@ func (s *HTTPServer) handleGetEventInfo(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Access-Control-Allow-Origin", os.Getenv("FRONTEND_URL"))
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	// Check for source of request & validity of request body
+	if err := validateRequest(w, r, s.schoolForm); err != nil {
+		log.Println("Invalid request, abort")
+		return
+	}
 	log.Printf("Request from: %s\n", r.URL.Host)
 	switch r.Method {
-	case http.MethodGet:
+	case http.MethodPost:
 		eventId := r.URL.Path[len("/event/"):]
-		// Ping gotenberg service to wake it up
-		convErr := make(chan error, 1)
-		go func() {
-			if err := schoolForm.GotenbergPing(); err != nil {
-				convErr <- err
-				return
-			}
-			convErr <- nil
-		}()
 		// Fetch relevant data from database based on event ID
 		eventInfo, err := s.schoolForm.GetEventInfo(r.Context(), schoolForm.GetEventInfoParams{EventID: eventId})
 		if err != nil {
@@ -85,11 +81,6 @@ func (s *HTTPServer) handleGetEventInfo(w http.ResponseWriter, r *http.Request) 
 		defer zA.Cleanup()
 		ec := make(chan error, 3)
 		go func() {
-			// Check if gotenberg service is healthy
-			if err := <-convErr; err != nil {
-				ec <- err
-				return
-			}
 			// Being conversion
 			if err = s.schoolForm.WriteSchForm(eventInfo, clubLeader, zA); err != nil {
 				log.Printf("writeSchForm err: %v\n", err.Error())
