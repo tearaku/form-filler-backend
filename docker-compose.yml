@@ -1,20 +1,12 @@
 # Run with: `docker-compose up -d --env-file .my_env`
 services:
-  gotenberg:
-    image: gotenberg/gotenberg:7
-    command:
-      - "gotenberg"
-      - "--pdfengines-engines=uno-pdfengine"
   backend:
     image: form-filler-backend
     build: .
     #image: "${FF_IMAGE_URL}"
     ports:
       - "8080:8080"
-    depends_on:
-      - gotenberg
     environment:
-      GOTENBERG_API: http://gotenberg:3000/forms/libreoffice/convert
       DATABASE_URL: ${DATABASE_URL}
       UNOSERVER_PORT: ${UNOSERVER_PORT}
       FRONTEND_URL: ${FRONTEND_URL}

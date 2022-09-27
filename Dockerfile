@@ -8,5 +8,6 @@ FROM ubuntu:22.04
 WORKDIR /app
 RUN apt-get update && apt install -y libreoffice
 RUN apt-get install -y python3-pip && pip3 install unoserver 
+COPY ./resources /usr/share/fonts/truetype
 COPY --from=baseExe /formfiller /formfiller
 CMD ["/formfiller"]

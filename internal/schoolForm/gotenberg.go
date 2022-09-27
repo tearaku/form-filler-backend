@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/exec"
 
 	"github.com/xuri/excelize/v2"
 	"google.golang.org/api/idtoken"
@@ -29,23 +30,39 @@ func getClient() (*http.Client, error) {
 	return http.DefaultClient, nil
 }
 
-func GotenbergPing() error {
-	req, err := http.NewRequest(http.MethodGet, os.Getenv("GOTENBERG_HEALTH"), nil)
+func PDFConvert(e *excelize.File, zA *Archiver) error {
+	// Writing to temp file (for unoconvert)
+	tF, err := os.CreateTemp("", "*.xlsx")
 	if err != nil {
 		return err
 	}
-	cli, err := getClient()
+	defer os.Remove(tF.Name())
+	defer tF.Close()
+	if err := e.Write(tF); err != nil {
+		return err
+	}
+
+	// Concurrency control (obtaining mutex lock)
+	w, err := zA.CreateFile("schoolForm.pdf")
 	if err != nil {
 		return err
 	}
-	res, err := cli.Do(req)
+	defer zA.CloseFile()
+
+	errBuf := &bytes.Buffer{}
+	cmd := exec.Command("unoconvert", "--convert-to", "pdf", tF.Name(), "-")
+	cmd.Stdout = *w
+	cmd.Stderr = errBuf
+	err = cmd.Run()
+	retry := 0
+	for retry < 2 && err != nil {
+		retry++
+		err = cmd.Run()
+	}
 	if err != nil {
-		return err
+		log.Printf("err in unoconvert (to PDF): %v\n", errBuf.String())
 	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return errors.New("gotenberg service: unavaliable")
-	}
+
 	return nil
 }
 
@@ -70,12 +87,12 @@ func GotenbergConvert(e *excelize.File, zA *Archiver) error {
 	if err != nil {
 		return err
 	}
-    retry := 0
+	retry := 0
 	res, err := cli.Do(req)
-    for retry < 2 && err != nil {
-        retry++
-        res, err = cli.Do(req)
-    }
+	for retry < 2 && err != nil {
+		retry++
+		res, err = cli.Do(req)
+	}
 	if err != nil {
 		return err
 	}

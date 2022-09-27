@@ -1,16 +1,15 @@
 package schoolForm
 
 import (
-	"teacup1592/form-filler/internal/dataSrc"
 	"testing"
+
+	"teacup1592/form-filler/internal/dataSrc"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"
 )
 
-var (
-	T_SCH_FORM_NAME = "source_test"
-)
+var T_SCH_FORM_NAME = "source_test"
 
 type FFTestSuite struct {
 	suite.Suite
@@ -76,6 +75,18 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 				fName: T_SCH_FORM_NAME,
 				fExt:  dataSrc.SCH_FORM_EXT,
 				sId:   1,
+			},
+		},
+		{
+			name: "valid filling of common record sheet (testing visual output)",
+			args: args{
+				e:   getEInfo_longFields(),
+				sId: 4,
+			},
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME,
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   0,
 			},
 		},
 	}

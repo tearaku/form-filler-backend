@@ -74,7 +74,7 @@ func NewArchiver(pattern string) (*Archiver, error) {
 	}
 	a := Archiver{
 		TempF: f,
-		ZipW:    zip.NewWriter(f),
+		ZipW:  zip.NewWriter(f),
 		mutex: sync.Mutex{},
 	}
 	return &a, nil
@@ -105,4 +105,11 @@ func (a *Archiver) Cleanup() error {
 		return err
 	}
 	return nil
+}
+
+func max(i, j int) int {
+	if i > j {
+		return i
+	}
+	return j
 }
