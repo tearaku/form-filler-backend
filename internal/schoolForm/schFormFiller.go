@@ -24,13 +24,14 @@ var (
 		"急救包": "C8", "GPS": "G8", "包溫瓶": "K8",
 	}
 	tEquipList = map[string]string{
-		"主繩": "C13", "吊帶": "G13", "上升器": "K13",
-		"下降器": "C14", "岩盔": "G14",
-		"有鎖鉤環": "C15", "救生衣": "G15",
+		"主繩": "C12", "吊帶": "G12", "上升器": "K12",
+		"下降器": "C13", "岩盔": "G13",
+		"有鎖鉤環": "C14", "救生衣": "G14",
 	}
 
 	internalSheets = []int{0, 1, 2}
 	externalSheets = []int{3, 4, 5}
+	wavierSheets   = []int{6, 7}
 )
 
 const (
@@ -52,10 +53,10 @@ const (
 	CAMPUS_SEC_RESCUE_BEGIN = 5
 	// Starting row index of member data for wavier form
 	WAVIER_FORM_MEMBER_BEGIN = 6
+	WAVIER_FORM_MEMBER_CAP   = 17
 
 	// Sheet id values
-	WAVIER_FORM_SHEET_ID = 6
-	CAMPUS_SEC_SHEET_ID  = 7
+	CAMPUS_SEC_SHEET_ID = 8
 )
 
 type VarEquipField struct {
@@ -323,9 +324,30 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sIdLis
 		return err
 	}
 
+	/* Filling fields that changes length of page: equip, watchers & rescues */
+
 	// Filling in equipment info
 	equipColDes := [3]string{"C", "G", "K"}
 	equipColNames := [3]string{"A", "E", "I"}
+	cusTEquip := VarEquipField{
+		curRowCap: 3,
+		curRowIdx: 15,
+		colNames:  equipColNames[:],
+		colDes:    equipColDes[:],
+	}
+	cusTEquip.AllocateRows(e.TechEquipList, &tEquipList, s, ew)
+	for i, eq := range e.TechEquipList {
+		c, ok := tEquipList[eq.Name]
+		if ok {
+			ew.setCellValue(s, c, eq.Des)
+		} else {
+			cusTEquip.dataIdx = append(cusTEquip.dataIdx, i)
+		}
+	}
+	if err := cusTEquip.WriteItems(e.TechEquipList, s, ew); err != nil {
+		return err
+	}
+
 	cusEquip := VarEquipField{
 		curRowCap: 3,
 		curRowIdx: 9,
@@ -341,31 +363,11 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sIdLis
 			cusEquip.dataIdx = append(cusEquip.dataIdx, i)
 		}
 	}
-	cusTEquip := VarEquipField{
-		curRowCap: 3,
-		curRowIdx: 16,
-		colNames:  equipColNames[:],
-		colDes:    equipColDes[:],
-	}
-	cusTEquip.AllocateRows(e.TechEquipList, &tEquipList, s, ew)
-	for i, eq := range e.TechEquipList {
-		c, ok := tEquipList[eq.Name]
-		if ok {
-			ew.setCellValue(s, c, eq.Des)
-		} else {
-			cusTEquip.dataIdx = append(cusTEquip.dataIdx, i)
-		}
+	if err := cusEquip.WriteItems(e.EquipList, s, ew); err != nil {
+		return err
 	}
 	if ew.err != nil {
 		return ew.err
-	}
-
-	/* Filling fields that changes length of page: equip, watchers & rescues */
-	if err := cusTEquip.WriteItems(e.TechEquipList, s, ew); err != nil {
-		return err
-	}
-	if err := cusEquip.WriteItems(e.EquipList, s, ew); err != nil {
-		return err
 	}
 
 	// Adjusting row height of equip fields
@@ -440,11 +442,11 @@ func WriteRescueWatcherField(f *excelize.File, s string, ew *errSetCellValue, mL
 	return nil
 }
 
-func (ff *FormFiller) FillWavierSheet(mL []FullAttendance, sId int) error {
+func (ff *FormFiller) FillWavierSheet(mL []FullAttendance, sIdList []int) error {
 	ew := &errSetCellValue{e: ff.excel}
+	sId := sIdList[0]
 	s := ff.excel.GetSheetName(sId)
 	// Capacity of each page (2 pages currently exists)
-	pCap := 17
 	r := WAVIER_FORM_MEMBER_BEGIN
 	for _, m := range mL {
 		if !m.UserProfile.IsStudent {
@@ -484,10 +486,14 @@ func (ff *FormFiller) FillWavierSheet(mL []FullAttendance, sId int) error {
 		}
 
 		r += 2
-		if ((r - WAVIER_FORM_MEMBER_BEGIN) / 2) >= pCap {
+		if ((r - WAVIER_FORM_MEMBER_BEGIN) / 2) >= WAVIER_FORM_MEMBER_CAP {
 			// Gap is 4-rows wide
-			r += 4
-			pCap += 17
+			r = WAVIER_FORM_MEMBER_BEGIN
+			sId++
+			if sId > sIdList[len(sIdList)-1] {
+				return fmt.Errorf("FillWavierSheet: attendants overflow")
+			}
+			s = ff.excel.GetSheetName(sId)
 		}
 	}
 	return nil
@@ -592,7 +598,7 @@ func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error
 	if err := ff.FillCommonRecordSheet(e, cL, externalSheets); err != nil {
 		return err
 	}
-	if err := ff.FillWavierSheet(e.Attendants, WAVIER_FORM_SHEET_ID); err != nil {
+	if err := ff.FillWavierSheet(e.Attendants, wavierSheets); err != nil {
 		return err
 	}
 	if err := ff.FillCampusSecurity(e, cL, CAMPUS_SEC_SHEET_ID); err != nil {

@@ -51,53 +51,23 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 		want    wantArgs
 		wantErr string
 	}{
-		{
-			name: "valid filling of common record sheet (internal use)",
-			args: args{
-				e:   getFullEventInfo(0),
-				sId: internalSheets,
-			},
-			want: wantArgs{
-				fName: T_SCH_FORM_NAME,
-				fExt:  dataSrc.SCH_FORM_EXT,
-				sId:   internalSheets,
-			},
-		},
-		{
-			name: "valid filling of common record sheet (external use)",
-			args: args{
-				e: getFullEventInfo(0),
-				cL: &MinProfile{
-					UserId:       1,
-					Name:         "一號君",
-					MobileNumber: "0910-000-000",
-					PhoneNumber:  "01-0000000",
-				},
-				sId: externalSheets,
-			},
-			want: wantArgs{
-				fName: T_SCH_FORM_NAME,
-				fExt:  dataSrc.SCH_FORM_EXT,
-				sId:   externalSheets,
-			},
-		},
 		/*
 			{
-				name: "valid filling of common record sheet (internal use), w/ 22 ppl",
+				name: "valid filling of common record sheet (internal use)",
 				args: args{
-					e:   getFullEventInfo(18),
+					e:   getFullEventInfo(0),
 					sId: internalSheets,
 				},
 				want: wantArgs{
-					fName: T_SCH_FORM_NAME + "_long",
+					fName: T_SCH_FORM_NAME,
 					fExt:  dataSrc.SCH_FORM_EXT,
 					sId:   internalSheets,
 				},
 			},
 			{
-				name: "valid filling of common record sheet (external use), w/ 22 ppl",
+				name: "valid filling of common record sheet (external use)",
 				args: args{
-					e: getFullEventInfo(18),
+					e: getFullEventInfo(0),
 					cL: &MinProfile{
 						UserId:       1,
 						Name:         "一號君",
@@ -107,12 +77,43 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 					sId: externalSheets,
 				},
 				want: wantArgs{
-					fName: T_SCH_FORM_NAME + "_long",
+					fName: T_SCH_FORM_NAME,
 					fExt:  dataSrc.SCH_FORM_EXT,
 					sId:   externalSheets,
 				},
 			},
 		*/
+
+		{
+			name: "valid filling of common record sheet (internal use), w/ 22 ppl",
+			args: args{
+				e:   getFullEventInfo(18),
+				sId: internalSheets,
+			},
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME + "_long",
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   internalSheets,
+			},
+		},
+		{
+			name: "valid filling of common record sheet (external use), w/ 22 ppl",
+			args: args{
+				e: getFullEventInfo(18),
+				cL: &MinProfile{
+					UserId:       1,
+					Name:         "一號君",
+					MobileNumber: "0910-000-000",
+					PhoneNumber:  "01-0000000",
+				},
+				sId: externalSheets,
+			},
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME + "_long",
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   externalSheets,
+			},
+		},
 	}
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
@@ -122,7 +123,6 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
 			}
 			defer _ff.excel.Close()
-
 			if err := s.ff.FillCommonRecordSheet(tt.args.e, tt.args.cL, tt.args.sId); err != nil {
 				t.Errorf("Error in FillCommonRecordSheet (id = %d): %v\n", tt.args.sId, err)
 			}
@@ -146,13 +146,13 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 
 func (s *FFTestSuite) TestFillWavierSheet() {
 	type args struct {
-		faList []FullAttendance
-		sId    int
+		faList  []FullAttendance
+		sIdList []int
 	}
 	type wantArgs struct {
-		fName string
-		fExt  string
-		sId   int
+		fName   string
+		fExt    string
+		sIdList []int
 	}
 	tests := []struct {
 		name    string
@@ -163,13 +163,13 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 		{
 			name: "valid call to FillWavierSheet",
 			args: args{
-				faList: getFullEventInfo(0).Attendants,
-				sId:    WAVIER_FORM_SHEET_ID,
+				faList:  getFullEventInfo(0).Attendants,
+				sIdList: wavierSheets,
 			},
 			want: wantArgs{
-				fName: T_SCH_FORM_NAME,
-				fExt:  dataSrc.SCH_FORM_EXT,
-				sId:   WAVIER_FORM_SHEET_ID,
+				fName:   T_SCH_FORM_NAME,
+				fExt:    dataSrc.SCH_FORM_EXT,
+				sIdList: wavierSheets,
 			},
 		},
 	}
@@ -181,19 +181,23 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
 			}
 			defer _ff.excel.Close()
-			if err := s.ff.FillWavierSheet(tt.args.faList, tt.args.sId); err != nil {
+			if err := s.ff.FillWavierSheet(tt.args.faList, tt.args.sIdList); err != nil {
 				t.Errorf("Error in FillWavierSheet: %v\n", err)
 			}
-			wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(tt.want.sId))
-			if err != nil {
-				t.Errorf("Error in getting rows from 'source_test.xlsx': %v\n", err)
-			}
-			gotRows, err := s.ff.excel.GetRows(s.ff.excel.GetSheetName(tt.args.sId))
-			if err != nil {
-				t.Errorf("Error in getting rows from 'source.xlsx': %v\n", err)
-			}
-			if !cmp.Equal(gotRows, wantRows) {
-				t.Errorf("mismatch with row values: %v\n", cmp.Diff(gotRows, wantRows))
+
+			for _, sId := range tt.want.sIdList {
+				t.Logf("Sheet idx: %v\n", sId)
+				wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(sId))
+				if err != nil {
+					t.Errorf("Error in getting rows from 'source_test.xlsx': %v\n", err)
+				}
+				gotRows, err := s.ff.excel.GetRows(s.ff.excel.GetSheetName(sId))
+				if err != nil {
+					t.Errorf("Error in getting rows from 'source.xlsx': %v\n", err)
+				}
+				if !cmp.Equal(gotRows, wantRows) {
+					t.Errorf("mismatch with row values: %v\n", cmp.Diff(gotRows, wantRows))
+				}
 			}
 		})
 	}
@@ -265,9 +269,6 @@ func (s *FFTestSuite) TestFillCampusSecurity() {
 			defer _ff.excel.Close()
 			if err := s.ff.FillCampusSecurity(tt.args.e, tt.args.cL, tt.args.sId); err != nil {
 				t.Errorf("Error in FillCampusSecurity: %v\n", err)
-			}
-			if err := s.ff.excel.SaveAs("__campusSec_long.xlsx"); err != nil {
-				t.Fatalf(err.Error())
 			}
 			wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(tt.want.sId))
 			if err != nil {
