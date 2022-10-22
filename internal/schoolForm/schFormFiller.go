@@ -2,6 +2,7 @@ package schoolForm
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -15,36 +16,46 @@ import (
 
 var (
 	equipList = map[string]string{
-		"帳棚": "C23", "鍋組（含湯瓢、鍋夾）": "G23", "爐頭": "K23",
-		"Gas": "C24", "糧食": "G24", "預備糧": "K24",
-		"山刀": "C25", "鋸子": "G25", "路標": "K25",
-		"衛星電話": "C26", "收音機": "G26", "無線電": "K26",
-		"傘帶": "C27", "Sling": "G27", "無鎖鉤環": "K27",
-		"急救包": "C28", "GPS": "G28", "包溫瓶": "K28",
+		"帳棚": "C3", "鍋組（含湯瓢、鍋夾）": "G3", "爐頭": "K3",
+		"Gas": "C4", "糧食": "G4", "預備糧": "K4",
+		"山刀": "C5", "鋸子": "G5", "路標": "K5",
+		"衛星電話": "C6", "收音機": "G6", "無線電": "K6",
+		"傘帶": "C7", "Sling": "G7", "無鎖鉤環": "K7",
+		"急救包": "C8", "GPS": "G8", "包溫瓶": "K8",
 	}
 	tEquipList = map[string]string{
-		"主繩": "C32", "吊帶": "G32", "上升器": "K32",
-		"下降器": "C33", "岩盔": "G33",
-		"有鎖鉤環": "C34", "救生衣": "G34",
+		"主繩": "C13", "吊帶": "G13", "上升器": "K13",
+		"下降器": "C14", "岩盔": "G14",
+		"有鎖鉤環": "C15", "救生衣": "G15",
 	}
+
+	internalSheets = []int{0, 1, 2}
+	externalSheets = []int{3, 4, 5}
 )
 
 const (
 	// 1st page only holds 13 member lists, after that a jump is needed
 	MEMBER_LIMIT = 13
-	// Beginning row number of the 1st memer list in page 1
-	MEMBER_P1_BEGIN           = 39
-	P1_END_EQUIPLIST          = 21
-	P2_END_SECOND_MEMBER_LIST = 66
+
+	// Beginning row number of the 1st memer list in page 2 & 3
+	MEMBER_P1_BEGIN = 19
+	MEMBER_P2_BEGIN = 4
+
+	P1_EQUIP_BEGIN = 3
+
+	// Row index of section headings
+	P1_TECHEQUIPLIST_ORI_BEGIN = 10
+	P1_MEMBER_ORI_BEGIN        = 16
+
 	// Starting row index of member / watcher data for CampusSecurity form
 	CAMPUS_SEC_MEMBER_BEGIN = 9
 	CAMPUS_SEC_RESCUE_BEGIN = 5
 	// Starting row index of member data for wavier form
 	WAVIER_FORM_MEMBER_BEGIN = 6
 
-	// Row index of section headings
-	P1_TECHEQUIPLIST_ORI_BEGIN = 30
-	P1_MEMBER_ORI_BEGIN        = 36
+	// Sheet id values
+	WAVIER_FORM_SHEET_ID = 6
+	CAMPUS_SEC_SHEET_ID  = 7
 )
 
 type VarEquipField struct {
@@ -81,13 +92,10 @@ func (v *VarEquipField) AllocateRows(e []Equip, baseE *map[string]string, sName 
 	return nil
 }
 
-// Returns the number of rows added, -1 & err if func op fails anywhere
-func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue) (int, error) {
+func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue) error {
 	if len(v.dataIdx) == 0 {
-		return 0, nil
+		return nil
 	}
-	// Subtracted by 3 as we already have an existing row for use
-	numRows := int(math.Ceil(float64(len(v.dataIdx)-3) / 3.0))
 	for _, i := range v.dataIdx {
 		if v.curRowCap == 0 {
 			v.curRowIdx++
@@ -100,9 +108,9 @@ func (v *VarEquipField) WriteItems(e []Equip, sName string, ew *errSetCellValue)
 		v.curRowCap--
 	}
 	if ew.err != nil {
-		return -1, ew.err
+		return ew.err
 	}
-	return numRows, nil
+	return nil
 }
 
 type CellContent struct {
@@ -169,15 +177,21 @@ func (RA *RowAdjustor) ComputeRange(colVal string, file *excelize.File, sName st
 	}
 	if colHeading != colVal {
 		oriEndRow := RA.EndRow
-		cols, err := file.GetCols(sName)
-		if err != nil {
-			return err
-		}
-		for i, v := range cols[0][RA.EndRow:] {
-			if v == colVal {
-				// Its inclusive, hence -1
-				RA.EndRow += i
+		// Terminate when 3 consecutive empty rows are read
+		termCond := 0
+		for i := RA.EndRow; termCond < 3; i++ {
+			v, err := file.GetCellValue(sName, "A"+strconv.Itoa(i))
+			if err != nil {
+				return err
+			}
+			switch v {
+			case colVal:
+				RA.EndRow = i
 				return nil
+			case "":
+				termCond++
+			default:
+				termCond = 0
 			}
 		}
 		// No update were made
@@ -189,15 +203,19 @@ func (RA *RowAdjustor) ComputeRange(colVal string, file *excelize.File, sName st
 }
 
 // Fills the indices 2 & 3
-func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId int) error {
+func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sIdList []int) error {
 	// Wrapper for SetCellValue --> check errors @ the end
 	ew := &errSetCellValue{e: ff.excel}
-	s := ff.excel.GetSheetName(sId)
 	isExt := true
-	if sId == 0 {
+	if sIdList[0] == internalSheets[0] {
 		isExt = false
 	}
 
+	/* Writing page 1 */
+	s := ff.excel.GetSheetName(sIdList[0])
+	if s == "" {
+		return fmt.Errorf("sheet at index %v not found", sIdList[0])
+	}
 	ew.setCellValue(s, "C2", e.Title)
 	eDur := e.BeginDate.Format("2006-01-02") + " ~ " + e.EndDate.Format("2006-01-02")
 	// For school-use, starting date begins at C0
@@ -262,25 +280,47 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		}
 	}
 
-	// Filling in attendance info
-	cRow := MEMBER_P1_BEGIN
-	for _, m := range e.Attendants {
-		if isExt && !m.UserProfile.IsStudent {
-			continue
+	// Filling rescues fields
+	if isExt {
+		// For external-use, 山難 ==> 社長
+		if cL == nil {
+			return errors.New("club leader information is not found")
 		}
-		// Skip to the next page (6 rows)
-		if cRow == MEMBER_P1_BEGIN+13 {
-			cRow += 6
+		ew.setCellValue(s, "C11", cL.Name)
+		ew.setCellValue(s, "J11", cL.MobileNumber)
+		ew.setCellValue(s, "J12", cL.PhoneNumber)
+	}
+	if !isExt {
+		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 11); err != nil {
+			return err
 		}
-		r1, r2 := strconv.Itoa(cRow), strconv.Itoa(cRow+1)
-		ew.setCellValue(s, "C"+r1, m.UserProfile.Name)
-		ew.setCellValue(s, "E"+r1, m.UserProfile.MobileNumber)
-		ew.setCellValue(s, "E"+r2, m.UserProfile.PhoneNumber)
-		ew.setCellValue(s, "G"+r1, m.UserProfile.EmergencyContactName)
-		ew.setCellValue(s, "I"+r1, m.UserProfile.EmergencyContactMobile)
-		ew.setCellValue(s, "I"+r2, m.UserProfile.EmergencyContactPhone)
-		ew.setCellValue(s, "K"+r1, m.Jobs)
-		cRow += 2
+	}
+
+	// Filling watchers fields
+	if isExt {
+		// For external-use, 留守 ==> 山難
+		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 9); err != nil {
+			return err
+		}
+	}
+	if !isExt {
+		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Watchers, 9); err != nil {
+			return err
+		}
+	}
+	// Checking if page 1 is OK
+	if ew.err != nil {
+		return ew.err
+	}
+
+	/* Writing to page 2 */
+	s = ff.excel.GetSheetName(sIdList[1])
+	if s == "" {
+		return fmt.Errorf("sheet at index %v not found", sIdList[1])
+	}
+
+	if err := FillAttendance(e.Attendants, ew, ff.excel, isExt); err != nil {
+		return err
 	}
 
 	// Filling in equipment info
@@ -288,7 +328,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	equipColNames := [3]string{"A", "E", "I"}
 	cusEquip := VarEquipField{
 		curRowCap: 3,
-		curRowIdx: 29,
+		curRowIdx: 9,
 		colNames:  equipColNames[:],
 		colDes:    equipColDes[:],
 	}
@@ -303,7 +343,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	}
 	cusTEquip := VarEquipField{
 		curRowCap: 3,
-		curRowIdx: 35,
+		curRowIdx: 16,
 		colNames:  equipColNames[:],
 		colDes:    equipColDes[:],
 	}
@@ -321,18 +361,10 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	}
 
 	/* Filling fields that changes length of page: equip, watchers & rescues */
-	pOffset := 0
-	offset, err := cusTEquip.WriteItems(e.TechEquipList, s, ew)
-	if err != nil {
+	if err := cusTEquip.WriteItems(e.TechEquipList, s, ew); err != nil {
 		return err
 	}
-	pOffset += offset
-	offset, err = cusEquip.WriteItems(e.EquipList, s, ew)
-	if err != nil {
-		return err
-	}
-	pOffset += offset
-	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P2_END_SECOND_MEMBER_LIST+pOffset)); err != nil {
+	if err := cusEquip.WriteItems(e.EquipList, s, ew); err != nil {
 		return err
 	}
 
@@ -349,7 +381,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 	equipRA := RowAdjustor{
 		ColOpt:   equipColOpt,
 		ColRange: equipColRange,
-		StartRow: P1_END_EQUIPLIST + 2,
+		StartRow: P1_EQUIP_BEGIN,
 		EndRow:   P1_TECHEQUIPLIST_ORI_BEGIN,
 	}
 	if err := equipRA.ComputeRange("技術裝備", ff.excel, s); err != nil {
@@ -371,45 +403,12 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sId in
 		return err
 	}
 
-	// Filling rescues fields
-	pOffset = 0
-	if isExt {
-		// For external-use, 山難 ==> 社長
-		if cL == nil {
-			return errors.New("club leader information is not found")
-		}
-		ew.setCellValue(s, "C11", cL.Name)
-		ew.setCellValue(s, "J11", cL.MobileNumber)
-		ew.setCellValue(s, "J12", cL.PhoneNumber)
-	}
-	if !isExt {
-		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 11, &pOffset); err != nil {
-			return err
-		}
-	}
-
-	// Filling watchers fields
-	if isExt {
-		// For external-use, 留守 ==> 山難
-		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Rescues, 9, &pOffset); err != nil {
-			return err
-		}
-	}
-	if !isExt {
-		if err = WriteRescueWatcherField(ff.excel, s, ew, e.Watchers, 9, &pOffset); err != nil {
-			return err
-		}
-	}
-
-	if err := ff.excel.InsertPageBreak(s, "A"+strconv.Itoa(P1_END_EQUIPLIST+pOffset)); err != nil {
-		return err
-	}
 	return nil
 }
 
 // Writes fields for watcher / rescue, inserting new rows if necessary
-// r: source row to be copied from; pOfs: #of new row count in page 1
-func WriteRescueWatcherField(f *excelize.File, s string, ew *errSetCellValue, mL []Attendance, r int, pOfs *int) error {
+// r: source row to be copied from
+func WriteRescueWatcherField(f *excelize.File, s string, ew *errSetCellValue, mL []Attendance, r int) error {
 	// Insert the necessary new rows w/ appropriate formatting
 	if len(mL) > 1 {
 		ofs := 2
@@ -427,7 +426,6 @@ func WriteRescueWatcherField(f *excelize.File, s string, ew *errSetCellValue, mL
 				return err
 			}
 			ofs += 2
-			*pOfs += 2
 		}
 	}
 	for i, m := range mL {
@@ -506,6 +504,9 @@ func (ff *FormFiller) FillCampusSecurity(e *EventInfo, cL *MinProfile, sId int) 
 	i := CAMPUS_SEC_MEMBER_BEGIN
 	for _, m := range e.Attendants {
 		if m.UserProfile.IsStudent {
+			if err := DuplicateRowWithStyle(ff.excel, s, i, i+1, 'A', 'I'); err != nil {
+				return err
+			}
 			p := m.UserProfile
 			ew.setCellValue(
 				s,
@@ -537,6 +538,43 @@ func (ff *FormFiller) FillCampusSecurity(e *EventInfo, cL *MinProfile, sId int) 
 	return nil
 }
 
+// TODO: support for teams of 30+ members
+func FillAttendance(aL []FullAttendance, ew *errSetCellValue, eFile *excelize.File, isExt bool) error {
+	sIdList := internalSheets
+	if isExt {
+		sIdList = externalSheets
+	}
+	s := eFile.GetSheetName(sIdList[1])
+	if s == "" {
+		return fmt.Errorf("sheet at index %v not found", sIdList[1])
+	}
+
+	cRow := MEMBER_P1_BEGIN
+	for _, m := range aL {
+		if isExt && !m.UserProfile.IsStudent {
+			continue
+		}
+		// Skip to the next page
+		if cRow == MEMBER_P1_BEGIN+(MEMBER_LIMIT*2) {
+			s = eFile.GetSheetName(sIdList[2])
+			if s == "" {
+				return fmt.Errorf("sheet at index %v not found", sIdList[2])
+			}
+			cRow = MEMBER_P2_BEGIN
+		}
+		r1, r2 := strconv.Itoa(cRow), strconv.Itoa(cRow+1)
+		ew.setCellValue(s, "C"+r1, m.UserProfile.Name)
+		ew.setCellValue(s, "E"+r1, m.UserProfile.MobileNumber)
+		ew.setCellValue(s, "E"+r2, m.UserProfile.PhoneNumber)
+		ew.setCellValue(s, "G"+r1, m.UserProfile.EmergencyContactName)
+		ew.setCellValue(s, "I"+r1, m.UserProfile.EmergencyContactMobile)
+		ew.setCellValue(s, "I"+r2, m.UserProfile.EmergencyContactPhone)
+		ew.setCellValue(s, "K"+r1, m.Jobs)
+		cRow += 2
+	}
+	return nil
+}
+
 // TODO?: modular filling instead of sequential filling of data
 // (to reduce repeated reads)
 func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error {
@@ -548,16 +586,16 @@ func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error
 		return err
 	}
 	defer ff.excel.Close()
-	if err := ff.FillCommonRecordSheet(e, nil, 0); err != nil {
+	if err := ff.FillCommonRecordSheet(e, nil, internalSheets); err != nil {
 		return err
 	}
-	if err := ff.FillCommonRecordSheet(e, cL, 1); err != nil {
+	if err := ff.FillCommonRecordSheet(e, cL, externalSheets); err != nil {
 		return err
 	}
-	if err := ff.FillWavierSheet(e.Attendants, 2); err != nil {
+	if err := ff.FillWavierSheet(e.Attendants, WAVIER_FORM_SHEET_ID); err != nil {
 		return err
 	}
-	if err := ff.FillCampusSecurity(e, cL, 3); err != nil {
+	if err := ff.FillCampusSecurity(e, cL, CAMPUS_SEC_SHEET_ID); err != nil {
 		return err
 	}
 
@@ -566,6 +604,7 @@ func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error
 	if err != nil {
 		return err
 	}
+
 	if err = ff.excel.Write(*w1); err != nil {
 		zA.CloseFile()
 		return err

@@ -1,9 +1,9 @@
 package schoolForm
 
 import (
-	"log"
-	"teacup1592/form-filler/internal/dataSrc"
 	"testing"
+
+	"teacup1592/form-filler/internal/dataSrc"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"
@@ -15,11 +15,11 @@ const (
 
 type MountPassFFTestSuite struct {
 	suite.Suite
-    ff FormFiller
+	ff FormFiller
 }
 
 func (s *MountPassFFTestSuite) SetupSuite() {
-    s.ff = FormFiller{}
+	s.ff = FormFiller{}
 }
 
 func (s *MountPassFFTestSuite) SetupTest() {
@@ -51,7 +51,7 @@ func (s *MountPassFFTestSuite) TestFillMountPass() {
 		{
 			name: "valid fill of mount pass form",
 			args: args{
-				e: getFullEventInfo(),
+				e: getFullEventInfo(0),
 			},
 			want: wantArgs{
 				fName: T_MOUNTPASS_FORM_NAME,
@@ -67,20 +67,18 @@ func (s *MountPassFFTestSuite) TestFillMountPass() {
 				t.Errorf("Error in sourcing 'mountpass_test.xlsx': %v", err)
 			}
 			defer _ff.excel.Close()
-            if err := FillMountPass(&s.ff, tt.args.e); err != nil {
+			if err := FillMountPass(&s.ff, tt.args.e); err != nil {
 				t.Errorf("Error in writing mount pass form: %v", err)
-            }
+			}
 			// TODO: Manual extraction of cells --> original file has lots of empty columns & rows @@
 			gotRows, err := s.ff.excel.GetRows(s.ff.excel.GetSheetName(0))
 			if err != nil {
 				t.Errorf("Error in getting rows from 'mountpass.xlsx': %v", err)
 			}
-            log.Printf("got: %d rows, %d cols\n", len(gotRows), len(gotRows[0]))
 			wantRows, err := _ff.excel.GetRows(s.ff.excel.GetSheetName(0))
 			if err != nil {
 				t.Errorf("Error in getting cols from 'mountpass_test.xlsx': %v", err)
 			}
-            log.Printf("want: %d rows, %d cols\n", len(wantRows), len(wantRows[0]))
 			if !cmp.Equal(gotRows, wantRows) {
 				t.Errorf("mismatch with column values: %v", cmp.Diff(gotRows, wantRows))
 			}

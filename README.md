@@ -4,6 +4,7 @@
 docker-compose up
 ```
 - Provide the necessary environment variables listed in the compose file (as .env file)
+- Get the Chinese font from [here](https://data.gov.tw/dataset/5961), and install the `Kai` family into the `resources` directory (otherwise outputted PDF will not render Chinese properly)
 
 # To-do List:
 - [] Universal API-safe error handling w/ semantics

@@ -50,7 +50,7 @@ func (s *InsFFTestSuite) TestWriteInsuranceForm() {
 		{
 			name: "valid fill of insurance form",
 			args: args{
-				e: getFullEventInfo(),
+				e: getFullEventInfo(0),
 			},
 			want: wantArgs{
 				fName: T_INS_FORM_NAME,

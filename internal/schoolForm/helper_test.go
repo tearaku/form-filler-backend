@@ -1,13 +1,44 @@
 package schoolForm
 
 import (
-	"fmt"
-	"strings"
+	"strconv"
 	"time"
 )
 
-func getFullEventInfo() *EventInfo {
-	return &EventInfo{
+func fillerMember(id int) FullAttendance {
+	return FullAttendance{
+		UserId: int32(id),
+		Role:   "Member",
+		Jobs:   "",
+		UserProfile: UserProfile{
+			UserId:                 int32(id),
+			EngName:                "Cole Schriber_" + strconv.Itoa(id),
+			IsMale:                 false,
+			IsStudent:              true,
+			MajorYear:              "歷史一",
+			DateOfBirth:            time.Date(1990, 2, 4, 16, 0, 0, 0, time.UTC),
+			PlaceOfBirth:           "呵呵國",
+			IsTaiwanese:            false,
+			NationalId:             "",
+			PassportNumber:         "P87654321",
+			Nationality:            "奧門",
+			Address:                "呵呵地址",
+			EmergencyContactName:   "緊急四",
+			EmergencyContactMobile: "0900-000-003",
+			EmergencyContactPhone:  "04-0000003",
+			BeneficiaryName:        "受益四",
+			BeneficiaryRelation:    "母女",
+			RiceAmount:             3,
+			FoodPreference:         "",
+			Name:                   "四號君_" + strconv.Itoa(id),
+			MobileNumber:           "0910-000-003",
+			PhoneNumber:            "01-0000003",
+		},
+	}
+}
+
+func getFullEventInfo(numExtraMember int) *EventInfo {
+	e := EventInfo{
 		Id:             1,
 		InviteToken:    "zVztX7II4eJi9b0OrV5Zj",
 		Title:          "Event #1",
@@ -217,79 +248,10 @@ func getFullEventInfo() *EventInfo {
 			},
 		},
 	}
-}
-
-func getEInfo_longFields() *EventInfo {
-	baseEInfo := getFullEventInfo()
-	longText := []string{
-		"Nunc dapibus ut tellus nec viverra. In dapibus ex sit amet mauris aliquam, vel luctus tellus commodo. Morbi in leo id erat pretium tempor. Sed bibendum dui lacus, at vulputate dui cursus ut.",
-		"Maecenas nec commodo diam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Quisque dictum sapien gravida arcu accumsan, ac hendrerit turpis aliquet. Mauris eleifend sem sodales ipsum rutrum pharetra. Nam ullamcorper condimentum mi, id laoreet nisl aliquam sit amet.",
-		"Nunc pulvinar ante quis justo suscipit, in luctus quam sodales. Morbi commodo erat et libero mattis porta. Duis tellus eros, fermentum ut commodo non, blandit non neque. Suspendisse vitae est id ex aliquam varius. Aliquam facilisis urna ut lobortis tincidunt. Nullam a nisi vitae sem posuere placerat quis ac odio. Morbi sed eros ante. Sed euismod faucibus neque, quis ullamcorper est pretium id.",
-		"Quisque at est mollis, interdum leo non, ultricies ligula. Phasellus ut augue semper, mollis lacus eu, blandit est. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Pellentesque commodo lacus nec elementum efficitur. Mauris varius faucibus diam, sit amet consequat leo tempus ut. Maecenas et ligula congue, cursus ipsum non, ultricies augue.",
-	}
-
-	/* Writing shorter texts */
-	// #of sentences in the shorter text
-	shortSentenceLen := 2
-	var sB strings.Builder
-	for i := 0; i < shortSentenceLen; i++ {
-		if _, err := sB.WriteString(longText[i] + "\n"); err != nil {
-			// todo: i'm just outputting err string here, i should do something about uncaught err?
-			fmt.Println(err.Error())
+	if numExtraMember > 0 {
+		for i := 8; i < 8+numExtraMember; i++ {
+			e.Attendants = append(e.Attendants, fillerMember(i))
 		}
 	}
-	baseEInfo.RetreatPlan = sB.String()
-
-	/* Writing longer texts */
-	for i := shortSentenceLen; i < len(longText); i++ {
-		if _, err := sB.WriteString(longText[i] + "\n"); err != nil {
-			// todo: i'm just outputting err string here, i should do something about uncaught err?
-			fmt.Println(err.Error())
-		}
-	}
-	baseEInfo.TripOverview = sB.String()
-	baseEInfo.Records = sB.String()
-
-	/* Writing to equip section */
-	baseEInfo.EquipList = []Equip{
-		{Name: "帳棚", Des: "1x"},
-		{Name: "鍋組（含湯瓢、鍋夾）", Des: "一中、兩大、二小（加兩個勺子）(I need some more words here XDDDDD)"},
-		{Name: "爐頭", Des: "1x"},
-		{Name: "Gas", Des: "1x"},
-		{Name: "糧食", Des: "1x"},
-		{Name: "預備糧", Des: "1x"},
-		{Name: "山刀", Des: "1x"},
-		{Name: "鋸子", Des: "1x"},
-		{Name: "路標", Des: "1x"},
-		{Name: "衛星電話", Des: "1x"},
-		{Name: "收音機", Des: "1x"},
-		{Name: "無線電", Des: "1x"},
-		{Name: "傘帶", Des: "1x"},
-		{Name: "Sling", Des: "1x"},
-		{Name: "無鎖鉤環", Des: "1x"},
-		{Name: "急救包", Des: "1x"},
-		{Name: "GPS", Des: "1x"},
-		{Name: "包溫瓶", Des: "1x"},
-		{Name: "Fibriophobia(Having fear of fever)", Des: "1x"},
-		{Name: "Utilitarianism", Des: "(Adopting a code of conduct that determines ethical values)"},
-		{Name: "ooxx", Des: "1x"},
-		{Name: "xxoo", Des: "1x"},
-		{Name: "ooxx", Des: "1x"},
-		{Name: "xxoo", Des: "1x"},
-	}
-	baseEInfo.TechEquipList = []Equip{
-		{Name: "主繩", Des: "1x"},
-		{Name: "吊帶", Des: "2x"},
-		{Name: "上升器", Des: "2x"},
-		{Name: "下降器", Des: "2x"},
-		{Name: "岩盔", Des: "2x"},
-		{Name: "有鎖鉤環", Des: "4x"},
-		{Name: "救生衣", Des: "4x"},
-		{Name: "岩釘", Des: "Angle*1, Knifeblade*5, Arrow*3, Beak*10, Skyhook*10"},
-		{Name: "ooxx", Des: "1x"},
-		{Name: "oxxo", Des: "1x"},
-		{Name: "oxox", Des: "1x"},
-	}
-
-	return baseEInfo
+	return &e
 }
