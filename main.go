@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 	"teacup1592/form-filler/internal/api"
 	"teacup1592/form-filler/internal/dataSrc"
 	"teacup1592/form-filler/internal/database"
+	"teacup1592/form-filler/internal/logger"
 	"teacup1592/form-filler/internal/schoolForm"
 )
 
@@ -21,9 +21,11 @@ func main() {
 	// TODO: Local settings setup
 	dataSrc.LocalEnvSetup()
 
+	log := logger.GetLogger()
+
 	connPool, err := database.NewDBPool(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err, "db failed to connect")
 	}
 	defer connPool.Close()
 
@@ -57,6 +59,6 @@ func main() {
 		err = <-ec
 	}
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err, "error in server")
 	}
 }
