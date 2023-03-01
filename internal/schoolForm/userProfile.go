@@ -28,6 +28,7 @@ type UserProfile struct {
 	Name                   string    `json:"name"`
 	MobileNumber           string    `json:"mobileNumber"`
 	PhoneNumber            string    `json:"phoneNumber,omitempty"`
+	Email                  string    `json:"email"`
 }
 
 type MinProfile struct {
@@ -35,6 +36,7 @@ type MinProfile struct {
 	Name         string `json:"name"`
 	MobileNumber string `json:"mobileNumber"`
 	PhoneNumber  string `json:"phoneNumber,omitempty"`
+	Email        string `json:"email"`
 }
 
 func (s *Service) CheckSession(ctx context.Context, userId int) error {

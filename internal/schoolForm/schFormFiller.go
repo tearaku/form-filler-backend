@@ -57,6 +57,7 @@ const (
 
 	// Sheet id values
 	CAMPUS_SEC_SHEET_ID = 8
+	EMAIL_SHEET_ID      = 9
 )
 
 type VarEquipField struct {
@@ -581,6 +582,41 @@ func FillAttendance(aL []FullAttendance, ew *errSetCellValue, eFile *excelize.Fi
 	return nil
 }
 
+func (ff *FormFiller) FillEmailList(e *EventInfo, sId int) error {
+	ew := &errSetCellValue{e: ff.excel}
+	s := ff.excel.GetSheetName(sId)
+
+	// Writing rescues' & watchers' emails
+	for i, m := range e.Watchers {
+		if err := DuplicateRowWithStyle(ff.excel, s, i, i+1, 'A', 'B'); err != nil {
+			return err
+		}
+		ew.setCellValue(s, "A"+strconv.Itoa(i+1), m.MinProfile.Name)
+		ew.setCellValue(s, "B"+strconv.Itoa(i+1), m.MinProfile.Email)
+	}
+	for i, m := range e.Rescues {
+		if err := DuplicateRowWithStyle(ff.excel, s, i, i+1, 'A', 'B'); err != nil {
+			return err
+		}
+		ew.setCellValue(s, "A"+strconv.Itoa(i+1), m.MinProfile.Name)
+		ew.setCellValue(s, "B"+strconv.Itoa(i+1), m.MinProfile.Email)
+	}
+
+	// Writing attendants' emails
+	for i, m := range e.Attendants {
+		if err := DuplicateRowWithStyle(ff.excel, s, i, i+1, 'A', 'B'); err != nil {
+			return err
+		}
+		ew.setCellValue(s, "A"+strconv.Itoa(i+1), m.UserProfile.Name)
+		ew.setCellValue(s, "B"+strconv.Itoa(i+1), m.UserProfile.Email)
+	}
+
+	if ew.err != nil {
+		return ew.err
+	}
+	return nil
+}
+
 // TODO?: modular filling instead of sequential filling of data
 // (to reduce repeated reads)
 func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error {
@@ -602,6 +638,9 @@ func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error
 		return err
 	}
 	if err := ff.FillCampusSecurity(e, cL, CAMPUS_SEC_SHEET_ID); err != nil {
+		return err
+	}
+	if err := ff.FillEmailList(e, EMAIL_SHEET_ID); err != nil {
 		return err
 	}
 

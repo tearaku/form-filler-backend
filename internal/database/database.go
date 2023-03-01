@@ -79,10 +79,12 @@ func (db *DB) GetEventInfo(ctx context.Context, id int) (*schoolForm.EventInfo, 
 
 func (db *DB) GetProfiles(ctx context.Context, idList []int32) ([]*schoolForm.UserProfile, error) {
 	var faList []*schoolForm.UserProfile
-	const sql = `SELECT "Profile".*, "MinimalProfile"."name", "MinimalProfile"."mobileNumber", "MinimalProfile"."phoneNumber" 
-	FROM "Profile", "MinimalProfile"
+	const sql = `SELECT "Profile".*, "MinimalProfile"."name", "MinimalProfile"."mobileNumber", "MinimalProfile"."phoneNumber", users.email
+	FROM "Profile", "MinimalProfile", users
 	WHERE "Profile"."userId" = "MinimalProfile"."userId" AND
-	"Profile"."userId" = ANY ($1) ORDER BY "userId" ASC`
+    users.id = "Profile"."userId" AND
+	"Profile"."userId" = ANY ($1)
+    ORDER BY "userId" ASC`
 	args := &pgtype.Int4Array{}
 	if err := args.Set(idList); err != nil {
 		log.Printf("err in setting Int4Array in Db.GetProfiles(): %v\n", err)
@@ -131,7 +133,11 @@ func (db *DB) GetMinProfiles(ctx context.Context, idList []int32) ([]*schoolForm
 		log.Printf("err in setting Int4Array in Db.GetMinProfiles(): %v\n", err)
 		return nil, errors.New("failed to setup sql for fetching minimal profiles")
 	}
-	const sql = `SELECT * FROM "MinimalProfile" WHERE "userId" = ANY ($1) ORDER BY "userId" ASC`
+	const sql = `SELECT "MinimalProfile".*, users.email
+    FROM "MinimalProfile", users
+    WHERE "MinimalProfile"."userId" = users.id
+    AND "MinimalProfile"."userId" = ANY ($1)
+    ORDER BY "MinimalProfile"."userId" ASC`
 	rows, err := db.DbPool.Query(ctx, sql, idList)
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return nil, err

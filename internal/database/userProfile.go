@@ -1,8 +1,9 @@
 package database
 
 import (
-	"teacup1592/form-filler/internal/schoolForm"
 	"time"
+
+	"teacup1592/form-filler/internal/schoolForm"
 )
 
 /*
@@ -32,6 +33,7 @@ type UserProfile struct {
 	Name                   string    `db:"name"`
 	MobileNumber           string    `db:"mobileNumber"`
 	PhoneNumber            string    `db:"phoneNumber"`
+	Email                  string    `db:"email"`
 }
 
 type MinProfile struct {
@@ -39,6 +41,7 @@ type MinProfile struct {
 	Name         string `db:"name"`
 	MobileNumber string `db:"mobileNumber"`
 	PhoneNumber  string `db:"phoneNumber"`
+	Email        string `db:"email"`
 }
 
 func (p *UserProfile) dto() (*schoolForm.UserProfile, error) {
@@ -100,6 +103,7 @@ func (p *UserProfile) dto() (*schoolForm.UserProfile, error) {
 		Name:                   p.Name,
 		MobileNumber:           p.MobileNumber,
 		PhoneNumber:            p.PhoneNumber,
+		Email:                  p.Email,
 	}, nil
 }
 
@@ -109,5 +113,6 @@ func (p *MinProfile) dto() *schoolForm.MinProfile {
 		Name:         p.Name,
 		MobileNumber: p.MobileNumber,
 		PhoneNumber:  p.PhoneNumber,
+		Email:        p.Email,
 	}
 }
