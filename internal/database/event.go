@@ -1,8 +1,9 @@
 package database
 
 import (
-	"teacup1592/form-filler/internal/schoolForm"
 	"time"
+
+	"teacup1592/form-filler/internal/schoolForm"
 )
 
 /*
@@ -84,10 +85,10 @@ func (e *EventInfo) dto() *schoolForm.EventInfo {
 	rescues := make([]schoolForm.Attendance, 0)
 	watchers := make([]schoolForm.Attendance, 0)
 	for _, member := range e.Attendants {
-		switch {
-		case member.Role == "Rescue":
+		switch member.Role {
+		case "Rescue":
 			rescues = append(rescues, member.dtoA())
-		case member.Role == "Watcher":
+		case "Watcher":
 			watchers = append(watchers, member.dtoA())
 		default:
 			attendants = append(attendants, member.dtoFA())

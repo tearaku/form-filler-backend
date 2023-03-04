@@ -170,8 +170,11 @@ func (db *DB) GetMemberByDept(ctx context.Context, des string) (*schoolForm.MinP
 	// Fetch the first match of given prefix
 	// NOTE: order is based on userId, so there should only be 1 club leader when
 	// executing backend code! (AKA transitory phase should end ASAP)
-	const sql = `SELECT * FROM "MinimalProfile"
-	WHERE "userId" = ANY (SELECT "userId" FROM "Department" WHERE "description" LIKE $1)`
+    
+    // TODO: do I really need email data here...?
+	const sql = `SELECT "MinimalProfile".*, users.email FROM "MinimalProfile", users
+    WHERE users.id = "userId" AND
+    "userId" = ANY (SELECT "userId" FROM "Department" WHERE "description" LIKE $1)`
 	// Add wildcard to allow existence of two club leaders during transitory phase
 	// Simply to skip the need to ask 網管 to assign new club leaders
 	desWild := des + "%"

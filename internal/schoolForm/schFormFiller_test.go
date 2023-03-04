@@ -119,7 +119,7 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 		s.T().Run(tt.name, func(t *testing.T) {
 			// Fetch the control sheet
 			_ff := FormFiller{}
-			if err := _ff.Init(T_SCH_FORM_NAME, dataSrc.SCH_FORM_EXT); err != nil {
+			if err := _ff.Init(tt.want.fName, tt.want.fExt); err != nil {
 				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
 			}
 			defer _ff.excel.Close()
@@ -137,7 +137,7 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 					t.Errorf("Error in getting columns from 'source.xlsx': %v\n", err)
 				}
 				if !cmp.Equal(gotRows, wantRows) {
-					t.Errorf("mismatch with row values: %v\n", cmp.Diff(gotRows, wantRows))
+					t.Errorf("mismatch with row values [-got, +want]: %v\n", cmp.Diff(gotRows, wantRows))
 				}
 			}
 		})

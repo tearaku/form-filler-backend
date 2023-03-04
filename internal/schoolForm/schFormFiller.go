@@ -251,6 +251,7 @@ func (ff *FormFiller) FillCommonRecordSheet(e *EventInfo, cL *MinProfile, sIdLis
 	if dur := int(e.EndDate.Sub(e.BeginDate).Hours()/24) + 1; dur < 0 {
 		return errors.New("event duration cannot be negative, " + strconv.Itoa(dur))
 	} else {
+        fmt.Printf("WRITING COST AS: %d\n", 10*dur*len(e.Attendants))
 		ew.setCellValue(s, "I8", 10*dur*len(e.Attendants))
 	}
 	ew.setCellValue(s, "C13", e.Drivers)
