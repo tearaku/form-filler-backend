@@ -76,7 +76,7 @@ func (s *DBTestSuite) TestGetEventInfo() {
 				ctx: context.Background(),
 				id:  1,
 			},
-			want: &EventInfoData,
+			want: &schoolForm.StubEventInfoData,
 		},
 		{
 			name: "get event with non-existent id",
@@ -87,7 +87,7 @@ func (s *DBTestSuite) TestGetEventInfo() {
 			wantErr: "failed to get event from database",
 		},
 	}
-    // These two fields are only partially filled with this db service call
+	// These two fields are only partially filled with this db service call
 	cmpOpt := []cmp.Option{
 		cmpopts.IgnoreFields(schoolForm.FullAttendance{}, "UserProfile"),
 		cmpopts.IgnoreFields(schoolForm.Attendance{}, "MinProfile"),
@@ -123,10 +123,10 @@ func (s *DBTestSuite) TestGetProfiles() {
 				idList: []int32{1, 2, 3, 4},
 			},
 			want: []*schoolForm.UserProfile{
-				&ProfileList[0],
-				&ProfileList[1],
-				&ProfileList[2],
-				&ProfileList[3],
+				&schoolForm.StubProfileList[0],
+				&schoolForm.StubProfileList[1],
+				&schoolForm.StubProfileList[2],
+				&schoolForm.StubProfileList[3],
 			},
 		},
 		{
@@ -169,13 +169,13 @@ func (s *DBTestSuite) TestGetMinProfiles() {
 				idList: []int32{1, 2, 3, 4, 5, 6, 7},
 			},
 			want: []*schoolForm.MinProfile{
-				&MinProfileList[0],
-				&MinProfileList[1],
-				&MinProfileList[2],
-				&MinProfileList[3],
-				&MinProfileList[4],
-				&MinProfileList[5],
-				&MinProfileList[6],
+				&schoolForm.StubMinProfileList[0],
+				&schoolForm.StubMinProfileList[1],
+				&schoolForm.StubMinProfileList[2],
+				&schoolForm.StubMinProfileList[3],
+				&schoolForm.StubMinProfileList[4],
+				&schoolForm.StubMinProfileList[5],
+				&schoolForm.StubMinProfileList[6],
 			},
 		},
 		{
@@ -225,7 +225,7 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 				ctx: context.Background(),
 				des: "社長",
 			},
-			want: &MinProfileList[0],
+			want: &schoolForm.StubMinProfileList[0],
 		},
 		{
 			name: "get valid departmenet head: 嚮導部長1",
@@ -233,7 +233,7 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 				ctx: context.Background(),
 				des: "嚮導部長1",
 			},
-			want: &MinProfileList[1],
+			want: &schoolForm.StubMinProfileList[1],
 		},
 		{
 			name: "get valid departmenet head: 嚮導部長2",
@@ -241,7 +241,7 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 				ctx: context.Background(),
 				des: "嚮導部長2",
 			},
-			want: &MinProfileList[2],
+			want: &schoolForm.StubMinProfileList[2],
 		},
 		{
 			name: "get valid multi-hit on department head: 嚮導部長",
@@ -249,7 +249,7 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 				ctx: context.Background(),
 				des: "嚮導部長",
 			},
-			want: &MinProfileList[1],
+			want: &schoolForm.StubMinProfileList[1],
 		},
 		{
 			name: "get valid departmenet head: 社產組長",
@@ -257,7 +257,7 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 				ctx: context.Background(),
 				des: "社產組長",
 			},
-			want: &MinProfileList[3],
+			want: &schoolForm.StubMinProfileList[3],
 		},
 		{
 			name: "get valid departmenet head: 山難部長",
@@ -265,7 +265,7 @@ func (s *DBTestSuite) TestGetMemberByDept() {
 				ctx: context.Background(),
 				des: "山難部長",
 			},
-			want: &MinProfileList[4],
+			want: &schoolForm.StubMinProfileList[4],
 		},
 		{
 			name: "get non-existent department head",

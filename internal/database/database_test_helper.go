@@ -16,9 +16,9 @@ import (
 
 func createUsers(ctx context.Context, tx pgx.Tx) error {
 	timeStatic := time.Date(2022, 8, 23, 8, 0, 0, 0, time.UTC)
-	idList := make([]int, len(MinProfileList))
+	idList := make([]int, len(schoolForm.StubMinProfileList))
 
-	for i, mP := range MinProfileList {
+	for i, mP := range schoolForm.StubMinProfileList {
 		var userId int
 		const newUser = `INSERT INTO users
         (name, email, created_at, updated_at)
@@ -48,7 +48,7 @@ func createUsers(ctx context.Context, tx pgx.Tx) error {
 		idList[i] = userId
 	}
 
-	for i, fP := range ProfileList {
+	for i, fP := range schoolForm.StubProfileList {
 		const newProfile = `INSERT INTO "Profile"
             ("userId", 
             "engName",
@@ -95,13 +95,13 @@ func createUsers(ctx context.Context, tx pgx.Tx) error {
 		}
 	}
 
-	for i, d := range RawDeptList {
+	for i, d := range schoolForm.StubRawDeptList {
 		const newDept = `INSERT INTO "Department"
         ("userId","description") 
         VALUES ($1,$2)`
 		if cT, err := tx.Exec(ctx, newDept,
 			idList[i],
-			d.description,
+			d.Description,
 		); err != nil || cT.RowsAffected() == 0 {
 			return fmt.Errorf("db Creating department #%d: %w", i, err)
 		}
@@ -115,7 +115,7 @@ func createEvent(ctx context.Context, tx pgx.Tx) error {
 	// All the strings starts with ",", remove them when using!
 	emptyErrs := []error{nil, nil}
 	equipStr := lo.Reduce(
-		EventInfoData.EquipList,
+		schoolForm.StubEventInfoData.EquipList,
 		func(agg [2][]string, item schoolForm.Equip, _ int) [2][]string {
 			agg[0] = append(agg[0], item.Name)
 			agg[1] = append(agg[1], item.Des)
@@ -135,7 +135,7 @@ func createEvent(ctx context.Context, tx pgx.Tx) error {
 	}
 
 	techEquipStr := lo.Reduce(
-		EventInfoData.TechEquipList,
+		schoolForm.StubEventInfoData.TechEquipList,
 		func(agg [2][]string, item schoolForm.Equip, _ int) [2][]string {
 			agg[0] = append(agg[0], item.Name)
 			agg[1] = append(agg[1], item.Des)
@@ -160,22 +160,22 @@ func createEvent(ctx context.Context, tx pgx.Tx) error {
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
     RETURNING "Event"."id"`
 	if err := tx.QueryRow(ctx, newEvent,
-		EventInfoData.InviteToken,
-		EventInfoData.Title,
-		EventInfoData.BeginDate,
-		EventInfoData.EndDate,
-		EventInfoData.Location,
-		EventInfoData.Category,
-		EventInfoData.GroupCategory,
-		EventInfoData.Drivers,
-		EventInfoData.DriversNumber,
-		EventInfoData.RadioFreq,
-		EventInfoData.RadioCodename,
-		EventInfoData.TripOverview,
-		EventInfoData.RescueTime,
-		EventInfoData.RetreatPlan,
-		EventInfoData.MapCoordSystem,
-		EventInfoData.Records,
+		schoolForm.StubEventInfoData.InviteToken,
+		schoolForm.StubEventInfoData.Title,
+		schoolForm.StubEventInfoData.BeginDate,
+		schoolForm.StubEventInfoData.EndDate,
+		schoolForm.StubEventInfoData.Location,
+		schoolForm.StubEventInfoData.Category,
+		schoolForm.StubEventInfoData.GroupCategory,
+		schoolForm.StubEventInfoData.Drivers,
+		schoolForm.StubEventInfoData.DriversNumber,
+		schoolForm.StubEventInfoData.RadioFreq,
+		schoolForm.StubEventInfoData.RadioCodename,
+		schoolForm.StubEventInfoData.TripOverview,
+		schoolForm.StubEventInfoData.RescueTime,
+		schoolForm.StubEventInfoData.RetreatPlan,
+		schoolForm.StubEventInfoData.MapCoordSystem,
+		schoolForm.StubEventInfoData.Records,
 		equipNames,
 		equipDes,
 		tEquipNames,
@@ -185,7 +185,7 @@ func createEvent(ctx context.Context, tx pgx.Tx) error {
 	}
 
 	// Full attendances
-	for i, fA := range FullAttendanceList {
+	for i, fA := range schoolForm.StubFullAttendanceList {
 		const newFullAtt = `INSERT INTO "Attendance"
         ("jobs","userId","role","eventId")
         VALUES ($1,$2,$3,$4)`
@@ -199,7 +199,7 @@ func createEvent(ctx context.Context, tx pgx.Tx) error {
 		}
 	}
 
-	for i, a := range AttendenceList {
+	for i, a := range schoolForm.StubAttendenceList {
 		const newAtt = `INSERT INTO "Attendance"
         ("jobs","userId","role","eventId")
         VALUES (DEFAULT,$1,$2,$3)`

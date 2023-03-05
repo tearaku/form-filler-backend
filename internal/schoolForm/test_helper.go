@@ -1,6 +1,7 @@
 package schoolForm
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -33,8 +34,19 @@ func fillerMember(id int) FullAttendance {
 			Name:                   "四號君_" + strconv.Itoa(id),
 			MobileNumber:           "0910-000-003",
 			PhoneNumber:            "01-0000003",
+			Email:                  fmt.Sprintf("test%d@gmail.com", id),
 		},
 	}
+}
+
+func TEST_getFullEventInfo(numExtraMember int) *EventInfo {
+	e := StubEventInfoData
+	if numExtraMember > 0 {
+		for i := 8; i < 8+numExtraMember; i++ {
+			e.Attendants = append(e.Attendants, fillerMember(i))
+		}
+	}
+	return &e
 }
 
 func getFullEventInfo(numExtraMember int) *EventInfo {

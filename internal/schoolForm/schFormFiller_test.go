@@ -11,10 +11,6 @@ import (
 
 var T_SCH_FORM_NAME = "source_test"
 
-/*
- * These tests are flicky as hell (something with excel file not cleaning up properly after each test?)
- */
-
 type FFTestSuite struct {
 	suite.Suite
 	ff FormFiller
@@ -51,6 +47,7 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 		want    wantArgs
 		wantErr string
 	}{
+		// These tests are flicky as hell (something with excel file not cleaning up properly after each test?)
 		/*
 			{
 				name: "valid filling of common record sheet (internal use)",
@@ -117,16 +114,19 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 	}
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			// Fetch the control sheet
+			// Arrange
 			_ff := FormFiller{}
 			if err := _ff.Init(tt.want.fName, tt.want.fExt); err != nil {
-				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
+				t.Errorf("Error in sourcing '%s.%s': %v\n", tt.want.fName, tt.want.fExt, err)
 			}
 			defer _ff.excel.Close()
+
+			// Act
 			if err := s.ff.FillCommonRecordSheet(tt.args.e, tt.args.cL, tt.args.sId); err != nil {
 				t.Errorf("Error in FillCommonRecordSheet (id = %d): %v\n", tt.args.sId, err)
 			}
 
+			// Assert
 			for i := 0; i < len(tt.args.sId); i++ {
 				wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(tt.want.sId[i]))
 				if err != nil {
@@ -172,13 +172,25 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 				sIdList: wavierSheets,
 			},
 		},
+		{
+			name: "valid call to FillWavierSheet (22 ppl)",
+			args: args{
+				faList:  getFullEventInfo(18).Attendants,
+				sIdList: wavierSheets,
+			},
+			want: wantArgs{
+				fName:   T_SCH_FORM_NAME + "_long",
+				fExt:    dataSrc.SCH_FORM_EXT,
+				sIdList: wavierSheets,
+			},
+		},
 	}
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
 			// Fetch the control sheet
 			_ff := FormFiller{}
-			if err := _ff.Init(T_SCH_FORM_NAME, dataSrc.SCH_FORM_EXT); err != nil {
-				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
+			if err := _ff.Init(tt.want.fName, tt.want.fExt); err != nil {
+				t.Errorf("Error in sourcing '%s.%s': %v\n", tt.want.fName, tt.want.fExt, err)
 			}
 			defer _ff.excel.Close()
 			if err := s.ff.FillWavierSheet(tt.args.faList, tt.args.sIdList); err != nil {
@@ -186,17 +198,21 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 			}
 
 			for _, sId := range tt.want.sIdList {
-				t.Logf("Sheet idx: %v\n", sId)
 				wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(sId))
 				if err != nil {
-					t.Errorf("Error in getting rows from 'source_test.xlsx': %v\n", err)
+					t.Errorf("Error in getting rows from sheet %d of '%s.%s': %v\n",
+						sId,
+						tt.want.fName,
+						tt.want.fExt,
+						err,
+					)
 				}
 				gotRows, err := s.ff.excel.GetRows(s.ff.excel.GetSheetName(sId))
 				if err != nil {
-					t.Errorf("Error in getting rows from 'source.xlsx': %v\n", err)
+					t.Errorf("Error in getting rows from sheet %d of 'source.xlsx': %v\n", sId, err)
 				}
 				if !cmp.Equal(gotRows, wantRows) {
-					t.Errorf("mismatch with row values: %v\n", cmp.Diff(gotRows, wantRows))
+					t.Errorf("mismatch with row values in sheet %d [-got,+want]: %v\n", sId, cmp.Diff(gotRows, wantRows))
 				}
 			}
 		})
@@ -238,48 +254,118 @@ func (s *FFTestSuite) TestFillCampusSecurity() {
 				sId:   CAMPUS_SEC_SHEET_ID,
 			},
 		},
-		/*
-			{
-				name: "valid call to filling campus security (22 ppl)",
-				args: args{
-					e: getFullEventInfo(18),
-					cL: &MinProfile{
-						UserId:       1,
-						Name:         "一號君",
-						MobileNumber: "0910-000-000",
-						PhoneNumber:  "01-0000000",
-					},
-					sId: CAMPUS_SEC_SHEET_ID,
+		{
+			name: "valid call to filling campus security (22 ppl)",
+			args: args{
+				e: getFullEventInfo(18),
+				cL: &MinProfile{
+					UserId:       1,
+					Name:         "一號君",
+					MobileNumber: "0910-000-000",
+					PhoneNumber:  "01-0000000",
 				},
-				want: wantArgs{
-					fName: T_SCH_FORM_NAME + "_long",
-					fExt:  dataSrc.SCH_FORM_EXT,
-					sId:   CAMPUS_SEC_SHEET_ID,
-				},
+				sId: CAMPUS_SEC_SHEET_ID,
 			},
-		*/
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME + "_long",
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   CAMPUS_SEC_SHEET_ID,
+			},
+		},
 	}
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			// Fetch the control sheet
+			// Arrange
 			_ff := FormFiller{}
-			if err := _ff.Init(T_SCH_FORM_NAME, dataSrc.SCH_FORM_EXT); err != nil {
-				t.Errorf("Error in sourcing 'source_test.xlsx': %v\n", err)
+			if err := _ff.Init(tt.want.fName, tt.want.fExt); err != nil {
+				t.Errorf("Error in sourcing '%s.%s': %v\n", tt.want.fName, tt.want.fExt, err)
 			}
 			defer _ff.excel.Close()
+
+			// Act
 			if err := s.ff.FillCampusSecurity(tt.args.e, tt.args.cL, tt.args.sId); err != nil {
 				t.Errorf("Error in FillCampusSecurity: %v\n", err)
 			}
+
+			// Assert
 			wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(tt.want.sId))
 			if err != nil {
-				t.Errorf("Error in getting rows from 'source_test.xlsx': %v\n", err)
+				t.Errorf("Error in getting rows from '%s.%s': %v\n", tt.want.fName, tt.want.fExt, err)
 			}
 			gotRows, err := s.ff.excel.GetRows(s.ff.excel.GetSheetName(tt.args.sId))
 			if err != nil {
 				t.Errorf("Error in getting rows from 'source.xlsx': %v\n", err)
 			}
 			if !cmp.Equal(gotRows, wantRows) {
-				t.Errorf("mismatch with row values: %v\n", cmp.Diff(gotRows, wantRows))
+				t.Errorf("mismatch with row values [-got,+want]: %v\n", cmp.Diff(gotRows, wantRows))
+			}
+		})
+	}
+}
+
+func (s *FFTestSuite) TestFillEmailList() {
+	type args struct {
+		e   *EventInfo
+		sId int
+	}
+	type wantArgs struct {
+		fName string
+		fExt  string
+		sId   int
+	}
+	tests := []struct {
+		name string
+		args args
+		want wantArgs
+	}{
+		{
+			name: "valid call to filling email list",
+			args: args{
+				e:   TEST_getFullEventInfo(0),
+				sId: EMAIL_SHEET_ID,
+			},
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME,
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   EMAIL_SHEET_ID,
+			},
+		},
+		{
+			name: "valid call to filling email list (22 ppl)",
+			args: args{
+				e:   TEST_getFullEventInfo(18),
+				sId: EMAIL_SHEET_ID,
+			},
+			want: wantArgs{
+				fName: T_SCH_FORM_NAME + "_long",
+				fExt:  dataSrc.SCH_FORM_EXT,
+				sId:   EMAIL_SHEET_ID,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			_ff := FormFiller{}
+			if err := _ff.Init(tt.want.fName, tt.want.fExt); err != nil {
+				t.Errorf("Error in sourcing '%s.%s': %v\n", tt.want.fName, tt.want.fExt, err)
+			}
+			defer _ff.excel.Close()
+
+			if err := s.ff.FillEmailList(tt.args.e, tt.args.sId); err != nil {
+				t.Errorf("Error in FillEmailList: %v\n", err)
+			}
+
+			wantRows, err := _ff.excel.GetRows(_ff.excel.GetSheetName(tt.args.sId))
+			if err != nil {
+				t.Errorf("Error in getting rows from '%s.%s': %v\n", tt.want.fName, tt.want.fExt, err)
+			}
+			gotRows, err := s.ff.excel.GetRows(_ff.excel.GetSheetName(tt.args.sId))
+			if err != nil {
+				t.Errorf("Error in getting rows from 'source.xlsx': %v\n", err)
+			}
+			if !cmp.Equal(gotRows, wantRows) {
+				t.Errorf("mismatch with row values [-got,+want]: %v\n", cmp.Diff(gotRows, wantRows))
 			}
 		})
 	}
