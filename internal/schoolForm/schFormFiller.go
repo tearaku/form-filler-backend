@@ -458,15 +458,15 @@ func (ff *FormFiller) FillWavierSheet(mL []FullAttendance, sIdList []int) error 
 		}
 		r1, r2 := strconv.Itoa(r), strconv.Itoa(r+1)
 		// Compute age based on date of form query
-		isAbove20 := "是"
+		isAbove18 := "是"
 		bD := m.UserProfile.DateOfBirth
 		tNow := time.Now()
-		if tNow.Year()-bD.Year() < 20 {
-			isAbove20 = "否"
+		if tNow.Year()-bD.Year() < 18 {
+			isAbove18 = "否"
 		}
-		if tNow.Year()-bD.Year() == 20 {
+		if tNow.Year()-bD.Year() == 18 {
 			if (tNow.Month() <= bD.Month()) && (tNow.Day() < bD.Day()) {
-				isAbove20 = "否"
+				isAbove18 = "否"
 			}
 		}
 		// Preparing to write to rows
@@ -474,7 +474,7 @@ func (ff *FormFiller) FillWavierSheet(mL []FullAttendance, sIdList []int) error 
 			m.UserProfile.Name,
 			m.UserProfile.MajorYear,
 			m.UserProfile.MobileNumber,
-			isAbove20,
+			isAbove18,
 			"",
 			m.UserProfile.EmergencyContactName,
 			m.UserProfile.EmergencyContactMobile,

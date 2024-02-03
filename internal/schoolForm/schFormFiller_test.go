@@ -2,6 +2,7 @@ package schoolForm
 
 import (
 	"testing"
+	"time"
 
 	"teacup1592/form-filler/internal/dataSrc"
 
@@ -145,6 +146,14 @@ func (s *FFTestSuite) TestFillCommonRecordSheet() {
 }
 
 func (s *FFTestSuite) TestFillWavierSheet() {
+	setupAgeRequirements := func(faList []FullAttendance) []FullAttendance {
+		// Over age requirement
+		faList[0].UserProfile.DateOfBirth = time.Date(time.Now().Year()-18, time.Now().Month(), time.Now().Day()-1, 16, 0, 0, 0, time.UTC)
+		// Under age requirement
+		faList[1].UserProfile.DateOfBirth = time.Date(time.Now().Year()-17, time.Now().Month(), time.Now().Day(), 16, 0, 0, 0, time.UTC)
+		return faList
+	}
+
 	type args struct {
 		faList  []FullAttendance
 		sIdList []int
@@ -163,7 +172,7 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 		{
 			name: "valid call to FillWavierSheet",
 			args: args{
-				faList:  getFullEventInfo(0).Attendants,
+				faList:  setupAgeRequirements(getFullEventInfo(0).Attendants),
 				sIdList: wavierSheets,
 			},
 			want: wantArgs{
@@ -175,7 +184,7 @@ func (s *FFTestSuite) TestFillWavierSheet() {
 		{
 			name: "valid call to FillWavierSheet (22 ppl)",
 			args: args{
-				faList:  getFullEventInfo(18).Attendants,
+				faList:  setupAgeRequirements(getFullEventInfo(18).Attendants),
 				sIdList: wavierSheets,
 			},
 			want: wantArgs{
