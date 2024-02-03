@@ -55,8 +55,12 @@ const (
 	WAVIER_FORM_MEMBER_BEGIN = 6
 	WAVIER_FORM_MEMBER_CAP   = 17
 
+	// Starting row index of email list sheet
+	EMAIL_LIST_BEGIN = 2
+
 	// Sheet id values
 	CAMPUS_SEC_SHEET_ID = 8
+	EMAIL_SHEET_ID      = 9
 )
 
 type VarEquipField struct {
@@ -510,9 +514,6 @@ func (ff *FormFiller) FillCampusSecurity(e *EventInfo, cL *MinProfile, sId int) 
 	i := CAMPUS_SEC_MEMBER_BEGIN
 	for _, m := range e.Attendants {
 		if m.UserProfile.IsStudent {
-			if err := DuplicateRowWithStyle(ff.excel, s, i, i+1, 'A', 'I'); err != nil {
-				return err
-			}
 			p := m.UserProfile
 			ew.setCellValue(
 				s,
@@ -581,6 +582,39 @@ func FillAttendance(aL []FullAttendance, ew *errSetCellValue, eFile *excelize.Fi
 	return nil
 }
 
+func (ff *FormFiller) FillEmailList(e *EventInfo, sId int) error {
+	ew := &errSetCellValue{e: ff.excel}
+	s := ff.excel.GetSheetName(sId)
+	r := EMAIL_LIST_BEGIN
+
+	// Writing rescues' & watchers' emails
+	for _, m := range e.Watchers {
+		ew.setCellValue(s, "A"+strconv.Itoa(r), m.MinProfile.Name)
+		ew.setCellValue(s, "B"+strconv.Itoa(r), m.MinProfile.Email)
+		ew.setCellValue(s, "C"+strconv.Itoa(r), m.Role)
+		r++
+	}
+	for _, m := range e.Rescues {
+		ew.setCellValue(s, "A"+strconv.Itoa(r), m.MinProfile.Name)
+		ew.setCellValue(s, "B"+strconv.Itoa(r), m.MinProfile.Email)
+		ew.setCellValue(s, "C"+strconv.Itoa(r), m.Role)
+		r++
+	}
+
+	// Writing attendants' emails
+	for _, m := range e.Attendants {
+		ew.setCellValue(s, "A"+strconv.Itoa(r), m.UserProfile.Name)
+		ew.setCellValue(s, "B"+strconv.Itoa(r), m.UserProfile.Email)
+		ew.setCellValue(s, "C"+strconv.Itoa(r), m.Role)
+		r++
+	}
+
+	if ew.err != nil {
+		return ew.err
+	}
+	return nil
+}
+
 // TODO?: modular filling instead of sequential filling of data
 // (to reduce repeated reads)
 func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error {
@@ -602,6 +636,9 @@ func (s *Service) WriteSchForm(e *EventInfo, cL *MinProfile, zA *Archiver) error
 		return err
 	}
 	if err := ff.FillCampusSecurity(e, cL, CAMPUS_SEC_SHEET_ID); err != nil {
+		return err
+	}
+	if err := ff.FillEmailList(e, EMAIL_SHEET_ID); err != nil {
 		return err
 	}
 

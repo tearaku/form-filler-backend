@@ -2,3 +2,4 @@
 .DS_Store
 internal/dataSrc/static/*
 resources/*
+.git

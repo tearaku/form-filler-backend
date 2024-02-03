@@ -1,4 +1,17 @@
 # Backend for Form Filler frontend
+## Running Tests
+For db tests, stub data must be inserted into an existing postgres db first.
+
+Run the test with the following env variable set to generate stub data (note: do NOT do this against an actual db!).
+```bash
+GEN_TEST_DATA=1 go test -v ./...
+```
+
+### `godotenv` is erroring on tests
+You may need to change `repoDir` in `internal/dataSrc/helper.go` file.
+
+See the linked issue in said file for details on why this is a thing.
+
 ## Install & Run
 ```bash
 docker-compose up
